@@ -163,7 +163,7 @@
   /* 체크리스트 */
   .checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
   .checklist li {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
     padding: 5px 6px; border-radius: 6px;
   }
   .checklist li:hover { background: var(--surface-2); }
@@ -174,6 +174,12 @@
   .checklist li:hover .actions, .checklist li:focus-within .actions { opacity: 1; }
   @media (hover: none) { .checklist li .actions { opacity: 1; } }
   .checklist .edit-input { flex: 1; padding: 3px 6px; }
+  .item-bar { flex-basis: 100%; display: flex; align-items: center; gap: 10px; padding-left: 25px; }
+  .item-bar .bar { flex: 1; }
+  .item-val { width: 38px; text-align: right; font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bar.sm { height: 14px; border-radius: 7px; }
+  .bar.sm .fill { border-radius: 7px; background: var(--done); }
+  .bar.sm .knob { width: 18px; height: 18px; margin-left: -9px; border-width: 2px; border-color: var(--done); }
   .add-item { display: flex; gap: 6px; }
   .add-item input { flex: 1; }
   .empty-list { color: var(--muted); font-size: 13px; padding: 4px 6px; }
@@ -292,7 +298,6 @@
   const THEME_KEY = 'examStudyTracker.theme';
   const COLORS = ['#3b6ef5', '#e8590c', '#22a06b', '#ae3ec9', '#d6336c', '#0c8599', '#f08c00', '#5c7cfa'];
 
-  let state = load();
 
   // ---------- 저장 ----------
   function load() {
@@ -300,16 +305,36 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        if (data && Array.isArray(data.subjects)) return data;
+        if (data && Array.isArray(data.subjects)) return normalize(data);
       }
     } catch (e) {}
     return { subjects: [] };
+  }
+  const clamp = v => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+  // 예전 기록(완료/미완료)은 100% / 0%로 바꿔서 읽음
+  function normalize(data) {
+    return {
+      subjects: data.subjects.map(s => ({
+        id: String(s.id || uid()),
+        name: String(s.name || '이름 없음'),
+        date: /^\d{4}-\d{2}-\d{2}$/.test(s.date) ? s.date : '',
+        color: COLORS.includes(s.color) ? s.color : COLORS[0],
+        achievement: clamp(s.achievement),
+        items: Array.isArray(s.items) ? s.items.map(i => ({
+          id: String(i.id || uid()),
+          text: String(i.text || ''),
+          progress: typeof i.progress === 'number' ? clamp(i.progress) : (i.done ? 100 : 0)
+        })) : []
+      }))
+    };
   }
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
     catch (e) { toast('브라우저 저장에 실패했어요. 백업 버튼으로 파일 저장을 권장합니다.'); }
   }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  let state = load();
 
   // ---------- 날짜 ----------
   function daysLeft(dateStr) {
@@ -335,7 +360,7 @@
   // ---------- 계산 ----------
   function progressOf(s) {
     if (!s.items.length) return 0;
-    return Math.round(s.items.filter(i => i.done).length / s.items.length * 100);
+    return Math.round(s.items.reduce((a, i) => a + i.progress, 0) / s.items.length);
   }
   function sortedSubjects() {
     return [...state.subjects].sort((a, b) => {
@@ -361,8 +386,9 @@
   function renderSummary() {
     const subs = state.subjects;
     const totalItems = subs.reduce((a, s) => a + s.items.length, 0);
-    const doneItems = subs.reduce((a, s) => a + s.items.filter(i => i.done).length, 0);
-    const prog = totalItems ? Math.round(doneItems / totalItems * 100) : 0;
+    const doneItems = subs.reduce((a, s) => a + s.items.filter(i => i.progress === 100).length, 0);
+    const sumItems = subs.reduce((a, s) => a + s.items.reduce((b, i) => b + i.progress, 0), 0);
+    const prog = totalItems ? Math.round(sumItems / totalItems) : 0;
     const ach = subs.length ? Math.round(subs.reduce((a, s) => a + s.achievement, 0) / subs.length) : 0;
     const upcoming = sortedSubjects().find(s => { const d = daysLeft(s.date); return d !== null && d >= 0; });
 
@@ -375,7 +401,7 @@
       <div class="stat">
         <div class="label">전체 범위 진도</div>
         <div class="value">${prog}%</div>
-        <div class="sub">${doneItems} / ${totalItems} 항목 완료</div>
+        <div class="sub">전체 항목 평균 · ${doneItems} / ${totalItems} 항목 완료</div>
       </div>
       <div class="stat">
         <div class="label">평균 성취도</div>
@@ -412,19 +438,37 @@
       return;
     }
     box.innerHTML = subs.map(cardHTML).join('');
-    subs.forEach(s => bindBar(box.querySelector(`.card[data-id="${s.id}"] .bar`), s));
+    subs.forEach(s => {
+      const card = box.querySelector(`.card[data-id="${s.id}"]`);
+      const achLabel = card.querySelector('.ach-val');
+      makeSlider(card.querySelector('.bar.ach'), () => s.achievement,
+        v => { s.achievement = v; achLabel.textContent = v + '%'; },
+        () => { save(); renderSummary(); renderOverview(); });
+      s.items.forEach(it => {
+        const li = card.querySelector(`li[data-item="${it.id}"]`);
+        const val = li.querySelector('.item-val');
+        makeSlider(li.querySelector('.bar'), () => it.progress,
+          v => {
+            it.progress = v; val.textContent = v + '%';
+            const p = progressOf(s);
+            card.querySelector('.prog-val').textContent = p + '%';
+            card.querySelector('.prog-fill').style.width = p + '%';
+          },
+          () => { save(); render(); });
+      });
+    });
   }
 
   function cardHTML(s) {
     const d = daysLeft(s.date);
     const cls = d === null ? '' : d < 0 ? 'past' : d <= 3 ? 'soon' : '';
     const p = progressOf(s);
-    const done = s.items.filter(i => i.done).length;
+    const done = s.items.filter(i => i.progress === 100).length;
     const ticks = [25, 50, 75].map(t => `<span style="left:${t}%"></span>`).join('');
     const items = s.items.length
       ? s.items.map(it => `
-        <li class="${it.done ? 'done' : ''}" data-item="${it.id}">
-          <input type="checkbox" ${it.done ? 'checked' : ''} aria-label="${esc(it.text)} 완료">
+        <li class="${it.progress === 100 ? 'done' : ''}" data-item="${it.id}">
+          <input type="checkbox" ${it.progress === 100 ? 'checked' : ''} aria-label="${esc(it.text)} 완료" title="체크하면 100%, 해제하면 0%">
           <span class="txt">${esc(it.text)}</span>
           <span class="actions">
             <button class="icon" data-act="rename" title="이름 수정">✎</button>
@@ -432,6 +476,14 @@
             <button class="icon" data-act="down" title="아래로">↓</button>
             <button class="icon del" data-act="del" title="삭제">✕</button>
           </span>
+          <div class="item-bar">
+            <div class="bar sm" role="slider" tabindex="0" aria-label="${esc(it.text)} 진행도"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="${it.progress}">
+              <div class="fill" style="width:${it.progress}%"></div>
+              <div class="knob" style="left:${it.progress}%"></div>
+            </div>
+            <span class="item-val">${it.progress}%</span>
+          </div>
         </li>`).join('')
       : `<li class="empty-list">시험 범위(챕터·단원)를 추가해 보세요.</li>`;
 
@@ -449,13 +501,13 @@
       </div>
 
       <div>
-        <div class="meter-label"><span>범위 진도 <span class="hint">· 체크리스트 기준</span></span><b>${p}% (${done}/${s.items.length})</b></div>
-        <div class="progress"><span style="width:${p}%"></span></div>
+        <div class="meter-label"><span>범위 진도 <span class="hint">· 항목 진행도 평균</span></span><b><span class="prog-val">${p}%</span> <span class="hint">(완료 ${done}/${s.items.length})</span></b></div>
+        <div class="progress"><span class="prog-fill" style="width:${p}%"></span></div>
       </div>
 
       <div>
         <div class="meter-label"><span>성취도 <span class="hint">· 막대를 드래그해서 표시</span></span><b class="ach-val">${s.achievement}%</b></div>
-        <div class="bar" role="slider" tabindex="0" aria-label="${esc(s.name)} 성취도"
+        <div class="bar ach" role="slider" tabindex="0" aria-label="${esc(s.name)} 성취도"
              aria-valuemin="0" aria-valuemax="100" aria-valuenow="${s.achievement}">
           <div class="ticks">${ticks}</div>
           <div class="fill" style="width:${s.achievement}%"></div>
@@ -464,7 +516,7 @@
       </div>
 
       <div>
-        <div class="meter-label"><span>시험 범위 체크리스트</span></div>
+        <div class="meter-label"><span>시험 범위 체크리스트 <span class="hint">· 항목별 막대를 드래그</span></span></div>
         <ul class="checklist">${items}</ul>
       </div>
       <form class="add-item">
@@ -474,22 +526,17 @@
     </article>`;
   }
 
-  // ---------- 성취 막대 드래그 ----------
-  function bindBar(bar, s) {
-    if (!bar) return;
-    const card = bar.closest('.card');
+  // ---------- 드래그 막대 (성취도 · 항목 진행도 공용) ----------
+  function makeSlider(bar, get, onInput, onCommit) {
     const fill = bar.querySelector('.fill');
     const knob = bar.querySelector('.knob');
-    const label = card.querySelector('.ach-val');
-
     function set(v, commit) {
-      v = Math.max(0, Math.min(100, Math.round(v)));
-      s.achievement = v;
+      v = clamp(v);
+      onInput(v);
       fill.style.width = v + '%';
       knob.style.left = v + '%';
-      label.textContent = v + '%';
       bar.setAttribute('aria-valuenow', v);
-      if (commit) { save(); renderSummary(); renderOverview(); }
+      if (commit) onCommit();
     }
     function fromEvent(e) {
       const r = bar.getBoundingClientRect();
@@ -503,7 +550,7 @@
         bar.removeEventListener('pointermove', move);
         bar.removeEventListener('pointerup', up);
         bar.removeEventListener('pointercancel', up);
-        set(s.achievement, true);
+        set(get(), true);
       };
       bar.addEventListener('pointermove', move);
       bar.addEventListener('pointerup', up);
@@ -512,7 +559,7 @@
     bar.addEventListener('keydown', e => {
       const step = e.shiftKey ? 10 : 1;
       const map = { ArrowRight: step, ArrowUp: step, ArrowLeft: -step, ArrowDown: -step };
-      if (e.key in map) { e.preventDefault(); set(s.achievement + map[e.key], true); }
+      if (e.key in map) { e.preventDefault(); set(get() + map[e.key], true); }
       else if (e.key === 'Home') { e.preventDefault(); set(0, true); }
       else if (e.key === 'End') { e.preventDefault(); set(100, true); }
     });
@@ -525,7 +572,7 @@
     if (e.target.type !== 'checkbox') return;
     const s = getSubject(e.target);
     const it = s.items.find(i => i.id === e.target.closest('li').dataset.item);
-    it.done = e.target.checked;
+    it.progress = e.target.checked ? 100 : 0;
     save(); render();
   });
 
@@ -536,7 +583,7 @@
     const text = input.value.trim();
     if (!text) return;
     const s = getSubject(e.target);
-    s.items.push({ id: uid(), text, done: false });
+    s.items.push({ id: uid(), text, progress: 0 });
     save(); render();
     const again = document.querySelector(`.card[data-id="${s.id}"] .add-item input`);
     if (again) again.focus();
@@ -688,18 +735,7 @@
       return;
     }
     armed($('bLoad'), '한 번 더 누르면 덮어쓰기', () => {
-      state = {
-        subjects: data.subjects.map(s => ({
-          id: String(s.id || uid()),
-          name: String(s.name || '이름 없음'),
-          date: /^\d{4}-\d{2}-\d{2}$/.test(s.date) ? s.date : '',
-          color: COLORS.includes(s.color) ? s.color : COLORS[0],
-          achievement: Math.max(0, Math.min(100, Number(s.achievement) || 0)),
-          items: Array.isArray(s.items) ? s.items.map(i => ({
-            id: String(i.id || uid()), text: String(i.text || ''), done: !!i.done
-          })) : []
-        }))
-      };
+      state = normalize(data);
       save(); render(); bdlg.close(); toast('불러오기 완료!');
     });
   });
