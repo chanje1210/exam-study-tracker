@@ -111,11 +111,14 @@
   }
   .overview h2, .section-title { font-size: 16px; margin: 0 0 12px; }
   .ov-row {
-    display: grid; grid-template-columns: minmax(80px, 160px) 1fr 44px 64px;
+    display: grid; grid-template-columns: minmax(72px, 150px) 1fr 44px 64px;
     gap: 10px; align-items: center; padding: 6px 0;
   }
   .ov-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ov-pct { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .ov-bars { display: grid; grid-template-columns: auto 1fr 36px; gap: 3px 8px; align-items: center; }
+  .ov-lab, .ov-tp { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ov-tp { text-align: right; }
+  .ov-pct { font-weight: 700; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
   .overview h2 .hint { color: var(--muted); font-weight: 400; font-size: 13px; }
   .mini { height: 10px; background: var(--track); border-radius: 4px; overflow: hidden; }
   .mini > span { display: block; height: 100%; border-radius: 4px; }
@@ -175,9 +178,27 @@
   .checklist li:hover .actions, .checklist li:focus-within .actions { opacity: 1; }
   @media (hover: none) { .checklist li .actions { opacity: 1; } }
   .checklist .edit-input { flex: 1; padding: 3px 6px; }
-  .item-bar { flex-basis: 100%; display: flex; align-items: center; gap: 10px; padding-left: 25px; }
+  .item-bar { flex-basis: 100%; display: flex; align-items: center; gap: 10px; padding-left: 57px; }
   .item-bar .bar { flex: 1; }
   .item-val { width: 38px; text-align: right; font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tab {
+    display: grid; gap: 5px; text-align: left; padding: 8px 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .tab[aria-pressed="true"] { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); background: var(--surface-2); }
+  .tab-top { display: flex; justify-content: space-between; gap: 6px; font-size: 13px; font-weight: 600; }
+  .tab-top b { font-variant-numeric: tabular-nums; }
+  .tab .mini { height: 6px; }
+  .tab-fill { background: var(--c); }
+  .tab-sub { font-size: 11px; color: var(--muted); }
+  .wt {
+    flex: none; padding: 0; width: 24px; height: 22px; border-radius: 6px;
+    font-size: 12px; font-weight: 700; line-height: 1;
+  }
+  .wt[data-w="상"] { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .wt[data-w="중"] { background: var(--surface-2); color: var(--text); }
+  .wt[data-w="하"] { background: transparent; color: var(--muted); border-style: dashed; }
   .bar.sm { height: 14px; border-radius: 7px; }
   .bar.sm .fill { border-radius: 7px; background: var(--done); }
   .bar.sm .knob { width: 18px; height: 18px; margin-left: -9px; border-width: 2px; border-color: var(--done); }
@@ -223,9 +244,13 @@
   }
   .toast.show { opacity: 1; }
 
+  /* 요약 화면: 링크 끝에 #widget을 붙여 열면 이 화면으로 시작 */
+  html.compact .section-title, html.compact #subjects,
+  html.compact #addSubjectBtn, html.compact #backupBtn { display: none; }
+
   @media (max-width: 520px) {
     .grid { grid-template-columns: 1fr; }
-    .ov-row { grid-template-columns: 72px 1fr 40px 48px; }
+    .ov-row { grid-template-columns: 64px 1fr 40px 46px; }
   }
 </style>
 </head>
@@ -235,6 +260,7 @@
     <h1>📚 시험 준비 트래커</h1>
     <div class="toolbar">
       <button class="primary" id="addSubjectBtn">+ 과목 추가</button>
+      <button id="compactBtn" title="요약 화면만 보기 (#widget)">요약만 보기</button>
       <button id="backupBtn" title="기록 백업 · 불러오기">백업 / 불러오기</button>
       <span class="sync" id="syncStatus" data-mode="local">이 기기 브라우저에만 저장</span>
       <button id="themeBtn" title="라이트/다크 전환">🌓</button>
@@ -313,19 +339,32 @@
     return { subjects: [] };
   }
   const clamp = v => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
-  // 예전 기록(완료/미완료)은 100% / 0%로 바꿔서 읽음
+  const TRACKS = [
+    { key: 'concept', label: '개념 공부', placeholder: '예: Ch.3 화학 평형' },
+    { key: 'problem', label: '문제 풀이', placeholder: '예: 연습문제 3장, 기출 2023' }
+  ];
+  const WEIGHTS = { '상': 3, '중': 2, '하': 1 };
+  const NEXT_WEIGHT = { '상': '중', '중': '하', '하': '상' };
+  function normItem(i) {
+    return {
+      id: String(i.id || uid()),
+      text: String(i.text || ''),
+      // 예전 기록(완료/미완료)은 100% / 0%로 읽음
+      progress: typeof i.progress === 'number' ? clamp(i.progress) : (i.done ? 100 : 0),
+      weight: i.weight in WEIGHTS ? i.weight : '중'
+    };
+  }
   function normalize(data) {
+    const list = a => Array.isArray(a) ? a.map(normItem) : [];
     return {
       subjects: data.subjects.map(s => ({
         id: String(s.id || uid()),
         name: String(s.name || '이름 없음'),
         date: /^\d{4}-\d{2}-\d{2}$/.test(s.date) ? s.date : '',
         color: COLORS.includes(s.color) ? s.color : COLORS[0],
-        items: Array.isArray(s.items) ? s.items.map(i => ({
-          id: String(i.id || uid()),
-          text: String(i.text || ''),
-          progress: typeof i.progress === 'number' ? clamp(i.progress) : (i.done ? 100 : 0)
-        })) : []
+        // 예전 단일 체크리스트(items)는 개념 공부로 옮김
+        concept: list(s.concept || s.items),
+        problem: list(s.problem)
       }))
     };
   }
@@ -430,10 +469,22 @@
   }
 
   // ---------- 계산 ----------
-  function progressOf(s) {
-    if (!s.items.length) return 0;
-    return Math.round(s.items.reduce((a, i) => a + i.progress, 0) / s.items.length);
+  // 영역 진도 = 항목 진행도의 가중 평균 (상 3 · 중 2 · 하 1). 항목이 없으면 null
+  function trackProgress(list) {
+    const w = list.reduce((a, i) => a + WEIGHTS[i.weight], 0);
+    if (!w) return null;
+    return Math.round(list.reduce((a, i) => a + i.progress * WEIGHTS[i.weight], 0) / w);
   }
+  // 과목 진도 = 개념·문제 진도의 평균 (항목이 있는 영역만)
+  function progressOf(s) {
+    const ps = TRACKS.map(t => trackProgress(s[t.key])).filter(v => v !== null);
+    return ps.length ? Math.round(ps.reduce((a, v) => a + v, 0) / ps.length) : 0;
+  }
+  function avg(vals) {
+    vals = vals.filter(v => v !== null);
+    return vals.length ? Math.round(vals.reduce((a, v) => a + v, 0) / vals.length) : null;
+  }
+  const pctText = v => v === null ? '—' : v + '%';
   function sortedSubjects() {
     return [...state.subjects].sort((a, b) => {
       const da = daysLeft(a.date), db = daysLeft(b.date);
@@ -448,6 +499,7 @@
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
+  const uiTab = {}; // 과목별로 보고 있는 영역 (개념/문제)
 
   function render() {
     renderSummary();
@@ -457,10 +509,9 @@
 
   function renderSummary() {
     const subs = state.subjects;
-    const totalItems = subs.reduce((a, s) => a + s.items.length, 0);
-    const doneItems = subs.reduce((a, s) => a + s.items.filter(i => i.progress === 100).length, 0);
-    const sumItems = subs.reduce((a, s) => a + s.items.reduce((b, i) => b + i.progress, 0), 0);
-    const prog = totalItems ? Math.round(sumItems / totalItems) : 0;
+    const prog = subs.length ? Math.round(subs.reduce((a, s) => a + progressOf(s), 0) / subs.length) : 0;
+    const c = avg(subs.map(s => trackProgress(s.concept)));
+    const pr = avg(subs.map(s => trackProgress(s.problem)));
     const upcoming = sortedSubjects().find(s => { const d = daysLeft(s.date); return d !== null && d >= 0; });
 
     $('summary').innerHTML = `
@@ -470,9 +521,9 @@
         <div class="sub">${upcoming ? esc(upcoming.name) + ' · ' + fmtDate(upcoming.date) : '예정된 시험 없음'}</div>
       </div>
       <div class="stat">
-        <div class="label">전체 범위 진도</div>
+        <div class="label">전체 진도 <span class="hint">· 과목 평균</span></div>
         <div class="value">${prog}%</div>
-        <div class="sub">전체 항목 평균 · ${doneItems} / ${totalItems} 항목 완료</div>
+        <div class="sub">개념 공부 ${pctText(c)} · 문제 풀이 ${pctText(pr)}</div>
       </div>`;
   }
 
@@ -480,12 +531,18 @@
     const subs = sortedSubjects();
     if (!subs.length) { $('overview').hidden = true; return; }
     $('overview').hidden = false;
-    $('overview').innerHTML = `<h2>한눈에 보기 <span class="hint">· 과목별 범위 진도</span></h2>` + subs.map(s => {
+    $('overview').innerHTML = `<h2>한눈에 보기 <span class="hint">· 과목별 개념·문제 진도</span></h2>` + subs.map(s => {
       const d = daysLeft(s.date);
+      const lines = TRACKS.map((t, k) => {
+        const v = trackProgress(s[t.key]);
+        return `<span class="ov-lab">${t.label.slice(0, 2)}</span>
+          <div class="mini"><span style="width:${v || 0}%;background:${s.color};opacity:${k ? .55 : 1}"></span></div>
+          <span class="ov-tp">${pctText(v)}</span>`;
+      }).join('');
       return `
       <div class="ov-row">
         <div class="ov-name" title="${esc(s.name)}">${esc(s.name)}</div>
-        <div class="mini"><span style="width:${progressOf(s)}%;background:${s.color}"></span></div>
+        <div class="ov-bars">${lines}</div>
         <div class="ov-pct">${progressOf(s)}%</div>
         <div class="ov-dday" style="color:${d !== null && d >= 0 && d <= 3 ? 'var(--danger)' : 'inherit'}">${ddayText(d)}</div>
       </div>`;
@@ -503,30 +560,30 @@
     box.innerHTML = subs.map(cardHTML).join('');
     subs.forEach(s => {
       const card = box.querySelector(`.card[data-id="${s.id}"]`);
-      s.items.forEach(it => {
+      const key = uiTab[s.id] || 'concept';
+      s[key].forEach(it => {
         const li = card.querySelector(`li[data-item="${it.id}"]`);
         const val = li.querySelector('.item-val');
         makeSlider(li.querySelector('.bar'), () => it.progress,
           v => {
             it.progress = v; val.textContent = v + '%';
-            const p = progressOf(s);
+            const p = progressOf(s), tp = trackProgress(s[key]);
             card.querySelector('.prog-val').textContent = p + '%';
             card.querySelector('.prog-fill').style.width = p + '%';
+            const tab = card.querySelector(`.tab[data-track="${key}"]`);
+            tab.querySelector('.tab-val').textContent = pctText(tp);
+            tab.querySelector('.tab-fill').style.width = (tp || 0) + '%';
           },
           () => { save(); render(); });
       });
     });
   }
 
-  function cardHTML(s) {
-    const d = daysLeft(s.date);
-    const cls = d === null ? '' : d < 0 ? 'past' : d <= 3 ? 'soon' : '';
-    const p = progressOf(s);
-    const done = s.items.filter(i => i.progress === 100).length;
-    const items = s.items.length
-      ? s.items.map(it => `
+  function itemHTML(it) {
+    return `
         <li class="${it.progress === 100 ? 'done' : ''}" data-item="${it.id}">
           <input type="checkbox" ${it.progress === 100 ? 'checked' : ''} aria-label="${esc(it.text)} 완료" title="체크하면 100%, 해제하면 0%">
+          <button class="wt" data-act="weight" data-w="${it.weight}" title="가중치 (눌러서 상→중→하)" aria-label="가중치 ${it.weight}">${it.weight}</button>
           <span class="txt">${esc(it.text)}</span>
           <span class="actions">
             <button class="icon" data-act="rename" title="이름 수정">✎</button>
@@ -542,8 +599,29 @@
             </div>
             <span class="item-val">${it.progress}%</span>
           </div>
-        </li>`).join('')
-      : `<li class="empty-list">시험 범위(챕터·단원)를 추가해 보세요.</li>`;
+        </li>`;
+  }
+
+  function cardHTML(s) {
+    const d = daysLeft(s.date);
+    const cls = d === null ? '' : d < 0 ? 'past' : d <= 3 ? 'soon' : '';
+    const p = progressOf(s);
+    const key = uiTab[s.id] || 'concept';
+    const track = TRACKS.find(t => t.key === key);
+    const list = s[key];
+    const tabs = TRACKS.map(t => {
+      const v = trackProgress(s[t.key]);
+      const n = s[t.key].length, done = s[t.key].filter(i => i.progress === 100).length;
+      return `
+        <button class="tab" data-act="tab" data-track="${t.key}" aria-pressed="${t.key === key}">
+          <span class="tab-top"><span>${t.label}</span><b class="tab-val">${pctText(v)}</b></span>
+          <span class="mini"><span class="tab-fill" style="width:${v || 0}%"></span></span>
+          <span class="tab-sub">완료 ${done}/${n}</span>
+        </button>`;
+    }).join('');
+    const items = list.length
+      ? list.map(itemHTML).join('')
+      : `<li class="empty-list">${track.label} 항목을 추가해 보세요.</li>`;
 
     return `
     <article class="card" data-id="${s.id}" style="--c:${s.color}">
@@ -559,18 +637,20 @@
       </div>
 
       <div>
-        <div class="meter-label"><span>범위 진도 <span class="hint">· 항목 진행도 평균</span></span><b><span class="prog-val">${p}%</span> <span class="hint">(완료 ${done}/${s.items.length})</span></b></div>
+        <div class="meter-label"><span>과목 진도 <span class="hint">· 개념·문제 평균</span></span><b class="prog-val">${p}%</b></div>
         <div class="progress"><span class="prog-fill" style="width:${p}%"></span></div>
       </div>
 
-      <div>
-        <div class="meter-label"><span>시험 범위 체크리스트 <span class="hint">· 항목별 막대를 드래그</span></span></div>
+      <div class="tabs">${tabs}</div>
+
+      <div data-track="${key}">
+        <div class="meter-label"><span class="hint">가중치 상·중·하를 눌러 바꾸고, 막대를 드래그해 진행도를 기록해요</span></div>
         <ul class="checklist">${items}</ul>
+        <form class="add-item">
+          <input type="text" placeholder="${track.placeholder}" maxlength="80" aria-label="${track.label} 항목 추가">
+          <button type="submit">추가</button>
+        </form>
       </div>
-      <form class="add-item">
-        <input type="text" placeholder="예: Ch.3 화학 평형" maxlength="80" aria-label="범위 항목 추가">
-        <button type="submit">추가</button>
-      </form>
     </article>`;
   }
 
@@ -618,12 +698,16 @@
 
   // ---------- 카드 이벤트 (위임) ----------
   const getSubject = el => state.subjects.find(s => s.id === el.closest('.card').dataset.id);
+  const getList = el => getSubject(el)[el.closest('[data-track]').dataset.track];
+  function getItem(el) {
+    const list = getList(el);
+    const idx = list.findIndex(i => i.id === el.closest('li').dataset.item);
+    return { list, idx, it: list[idx] };
+  }
 
   $('subjects').addEventListener('change', e => {
     if (e.target.type !== 'checkbox') return;
-    const s = getSubject(e.target);
-    const it = s.items.find(i => i.id === e.target.closest('li').dataset.item);
-    it.progress = e.target.checked ? 100 : 0;
+    getItem(e.target).it.progress = e.target.checked ? 100 : 0;
     save(); render();
   });
 
@@ -634,7 +718,7 @@
     const text = input.value.trim();
     if (!text) return;
     const s = getSubject(e.target);
-    s.items.push({ id: uid(), text, progress: 0 });
+    getList(e.target).push({ id: uid(), text, progress: 0, weight: '중' });
     save(); render();
     const again = document.querySelector(`.card[data-id="${s.id}"] .add-item input`);
     if (again) again.focus();
@@ -646,12 +730,13 @@
     const s = getSubject(btn);
     const act = btn.dataset.act;
     if (act === 'edit') { openDialog(s); return; }
-    const li = btn.closest('li');
-    if (act === 'rename') { startEdit(li.querySelector('.txt')); return; }
-    const idx = s.items.findIndex(i => i.id === li.dataset.item);
-    if (act === 'del') s.items.splice(idx, 1);
-    if (act === 'up' && idx > 0) [s.items[idx - 1], s.items[idx]] = [s.items[idx], s.items[idx - 1]];
-    if (act === 'down' && idx < s.items.length - 1) [s.items[idx + 1], s.items[idx]] = [s.items[idx], s.items[idx + 1]];
+    if (act === 'tab') { uiTab[s.id] = btn.dataset.track; renderSubjects(); return; }
+    if (act === 'rename') { startEdit(btn.closest('li').querySelector('.txt')); return; }
+    const { list, idx, it } = getItem(btn);
+    if (act === 'weight') it.weight = NEXT_WEIGHT[it.weight];
+    if (act === 'del') list.splice(idx, 1);
+    if (act === 'up' && idx > 0) [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
+    if (act === 'down' && idx < list.length - 1) [list[idx + 1], list[idx]] = [list[idx], list[idx + 1]];
     save(); render();
   });
 
@@ -661,8 +746,7 @@
   });
 
   function startEdit(txt) {
-    const s = getSubject(txt);
-    const it = s.items.find(i => i.id === txt.closest('li').dataset.item);
+    const { it } = getItem(txt);
     const input = document.createElement('input');
     input.type = 'text'; input.className = 'edit-input'; input.value = it.text; input.maxLength = 80;
     txt.replaceWith(input);
@@ -740,7 +824,7 @@
     if (editing) {
       Object.assign(editing, { name, date, color: pickedColor });
     } else {
-      state.subjects.push({ id: uid(), name, date, color: pickedColor, items: [] });
+      state.subjects.push({ id: uid(), name, date, color: pickedColor, concept: [], problem: [] });
     }
     save(); dlg.close(); render();
   });
@@ -804,6 +888,20 @@
     applyTheme(next);
     try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
   });
+
+  // ---------- 요약 화면 ----------
+  function applyCompact() {
+    const on = location.hash === '#widget';
+    document.documentElement.classList.toggle('compact', on);
+    $('compactBtn').textContent = on ? '전체 보기' : '요약만 보기';
+  }
+  $('compactBtn').addEventListener('click', () => {
+    if (location.hash === '#widget') history.replaceState(null, '', location.pathname + location.search);
+    else location.hash = 'widget';
+    applyCompact();
+  });
+  window.addEventListener('hashchange', applyCompact);
+  applyCompact();
 
   // ---------- 토스트 ----------
   let toastTimer;
