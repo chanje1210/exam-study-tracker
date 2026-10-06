@@ -220,6 +220,28 @@
   }
   dialog::backdrop { background: rgba(0,0,0,.4); }
   dialog h3 { margin: 0 0 14px; }
+  dialog h3:focus { outline: none; }
+  dialog.manual { width: min(560px, calc(100vw - 32px)); max-height: 86vh; padding: 0; overflow: hidden; }
+  dialog.manual[open] { display: flex; flex-direction: column; }
+  .manual-body { overflow-y: auto; padding: 20px 20px 8px; min-height: 0; }
+  .manual-foot { display: flex; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--border); }
+  .manual .lead { margin: 0 0 14px; color: var(--muted); }
+  .manual .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 14px; }
+  .manual .steps > li { counter-increment: step; position: relative; padding-left: 36px; }
+  .manual .steps > li::before {
+    content: counter(step); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 13px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .manual h4 { margin: 1px 0 2px; font-size: 15px; }
+  .manual p { margin: 0 0 4px; font-size: 14px; }
+  .manual .legend-list { margin: 4px 0 6px; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13.5px; }
+  .manual .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  .dot.ok { background: var(--done); } .dot.warn { background: #e0a100; } .dot.bad { background: var(--danger); }
+  .wt-demo {
+    display: inline-block; padding: 0 6px; border: 1px solid var(--border); border-radius: 5px;
+    background: var(--surface-2); font-size: 12px; font-weight: 700;
+  }
   .field { display: grid; gap: 4px; margin-bottom: 12px; }
   .field label { font-size: 13px; color: var(--muted); }
   .colors { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -264,6 +286,7 @@
       <button id="compactBtn" title="요약 화면만 보기 (#widget)">요약만 보기</button>
       <button id="backupBtn" title="기록 백업 · 불러오기">백업 / 불러오기</button>
       <span class="sync" id="syncStatus" data-mode="local">이 기기 브라우저에만 저장</span>
+      <button id="manualBtn" title="사용 매뉴얼 보기">매뉴얼</button>
       <button id="themeBtn" title="라이트/다크 전환">🌓</button>
     </div>
   </header>
@@ -295,6 +318,57 @@
       <button type="submit" class="primary">저장</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="manualDialog" class="manual" aria-labelledby="manualTitle">
+  <div class="manual-body" id="manualBody">
+  <h3 id="manualTitle" tabindex="-1">시험 준비 트래커 사용법</h3>
+  <p class="lead">시험 범위를 <b>개념 공부</b>와 <b>문제 풀이</b>로 나눠 기록하고, 과목별 진도와 D-day를 한눈에 보는 앱이에요.</p>
+  <ol class="steps">
+    <li>
+      <h4>과목 추가</h4>
+      <p>오른쪽 위 <b>+ 과목 추가</b>를 눌러 과목명, 시험 날짜, 색을 정해요. 날짜를 넣으면 D-day가 나오고, 시험이 가까운 과목부터 보여요. 과목 이름·날짜를 바꾸거나 삭제하려면 카드의 <b>⚙︎</b>를 눌러요.</p>
+    </li>
+    <li>
+      <h4>공부할 항목 넣기</h4>
+      <p>과목 카드의 <b>개념 공부</b> · <b>문제 풀이</b> 탭을 골라 아래 입력칸에 항목을 추가해요. 예: 개념은 'Ch.3 화학 평형', 문제는 '연습문제 3장'.</p>
+    </li>
+    <li>
+      <h4>진행도 기록</h4>
+      <p>항목 아래 <b>초록 막대를 드래그</b>해 0~100%로 기록해요. 다 끝냈으면 <b>체크박스</b>를 눌러 바로 100%로 만들 수 있어요(해제하면 0%).</p>
+    </li>
+    <li>
+      <h4>가중치 상 · 중 · 하</h4>
+      <p>항목 앞의 <span class="wt-demo">중</span> 버튼을 누를 때마다 <b>중 → 하 → 상</b>으로 바뀌어요. 중요하거나 분량이 많은 항목은 '상'으로 두세요. 진도 계산에서 상은 3배, 중은 2배, 하는 1배로 반영돼요.</p>
+    </li>
+    <li>
+      <h4>진도는 이렇게 계산돼요</h4>
+      <p><b>개념·문제 진도</b> = 각 항목 진행도의 가중 평균<br><b>과목 진도</b> = 개념 진도와 문제 진도의 평균<br><b>전체 진도</b>(맨 위) = 모든 과목 진도의 평균</p>
+    </li>
+    <li>
+      <h4>항목 정리</h4>
+      <p>항목의 <b>✎</b>로 이름 수정, <b>↑ ↓</b>로 순서 변경, <b>✕</b>로 삭제해요. 컴퓨터에서는 항목 이름을 더블클릭해도 수정돼요.</p>
+    </li>
+    <li>
+      <h4>한눈에 보기 · 요약 화면</h4>
+      <p>위쪽 <b>한눈에 보기</b>에서 과목별 개념·문제 진도를 비교해요. <b>요약만 보기</b>를 누르면 요약만 남아요. 링크 끝에 <b>#widget</b>을 붙여 홈 화면에 추가하면 요약 화면으로 바로 열려요.</p>
+    </li>
+    <li>
+      <h4>저장 상태 확인</h4>
+      <p>기록은 자동 저장돼요. 오른쪽 위 표시를 확인하세요.</p>
+      <ul class="legend-list">
+        <li><span class="dot ok"></span><b>서버에 저장됨</b>: 내 계정에 저장돼서 다른 기기에서도 보여요. 다른 사람은 내 기록을 볼 수 없어요.</li>
+        <li><span class="dot warn"></span><b>이 기기 브라우저에만 저장</b>: 브라우저 데이터가 지워지면 사라질 수 있어요.</li>
+        <li><span class="dot bad"></span><b>저장 권한 없음</b>: 링크를 공유해 준 사람에게 '편집자' 권한을 요청하세요.</li>
+      </ul>
+      <p>혹시 모르니 가끔 <b>백업 / 불러오기 → 복사</b>로 기록을 메모 앱에 보관해 두면 안전해요.</p>
+    </li>
+  </ol>
+  </div>
+  <div class="manual-foot">
+    <button type="button" id="manualHide" style="margin-right:auto">다시 보지 않기</button>
+    <button type="button" class="primary" id="manualClose">시작하기</button>
+  </div>
 </dialog>
 
 <dialog id="backupDialog">
@@ -358,6 +432,7 @@
   function normalize(data) {
     const list = a => Array.isArray(a) ? a.map(normItem) : [];
     return {
+      hideManual: !!data.hideManual,
       subjects: data.subjects.map(s => ({
         id: String(s.id || uid()),
         name: String(s.name || '이름 없음'),
@@ -402,7 +477,7 @@
       if (json === cloud.lastJSON) { setSync('saved'); return; }
       cloud.writing = cloud.writing.then(async () => {
         try {
-          await cloud.ref.set({ subjects: JSON.parse(json).subjects, updatedAt: new Date().toISOString() });
+          await cloud.ref.set({ ...JSON.parse(json), updatedAt: new Date().toISOString() });
           cloud.lastJSON = json;
           setSync('saved');
         } catch (e) {
@@ -893,6 +968,31 @@
     try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
   });
 
+  // ---------- 사용 매뉴얼 ----------
+  const MANUAL_KEY = 'examStudyTracker.hideManual';
+  const mdlg = $('manualDialog');
+  function openManual() {
+    if (mdlg.open) return;
+    mdlg.showModal();
+    $('manualBody').scrollTop = 0;
+    $('manualTitle').focus({ preventScroll: true });
+  }
+  function maybeShowManual() {
+    let hidden = state.hideManual;
+    try { hidden = hidden || localStorage.getItem(MANUAL_KEY) === '1'; } catch (e) {}
+    if (!hidden) openManual();
+  }
+  $('manualBtn').addEventListener('click', openManual);
+  $('manualClose').addEventListener('click', () => mdlg.close());
+  $('manualHide').addEventListener('click', () => {
+    // 브라우저와 서버 기록 양쪽에 남겨서 다른 기기에서도 다시 뜨지 않게 함
+    try { localStorage.setItem(MANUAL_KEY, '1'); } catch (e) {}
+    state.hideManual = true;
+    save();
+    mdlg.close();
+    toast('매뉴얼은 오른쪽 위 매뉴얼 버튼으로 언제든 볼 수 있어요.');
+  });
+
   // ---------- 요약 화면 ----------
   function applyCompact() {
     const on = location.hash === '#widget';
@@ -917,7 +1017,8 @@
   }
 
   render();
-  connectCloud();
+  // 서버 기록(다시 보지 않기 설정 포함)을 불러온 뒤 매뉴얼 표시 여부를 정함. 연결이 늦으면 3초 뒤 판단
+  Promise.race([connectCloud(), new Promise(r => setTimeout(r, 3000))]).finally(maybeShowManual);
 })();
 </script>
 </body>
