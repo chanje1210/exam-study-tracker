@@ -70,7 +70,8 @@
   .sync::before { content: "●"; margin-right: 4px; font-size: 9px; vertical-align: 1px; }
   .sync[data-mode="saved"]::before { color: var(--done); }
   .sync[data-mode="local"]::before, .sync[data-mode="connecting"]::before, .sync[data-mode="saving"]::before { color: #e0a100; }
-  .sync[data-mode="error"] { color: var(--danger); }
+  .sync[data-mode="error"], .sync[data-mode="readonly"] { color: var(--danger); }
+  .sync[data-mode="readonly"]::before { color: var(--danger); }
   .sync[data-mode="error"]::before { color: var(--danger); }
   button {
     font: inherit; color: inherit; cursor: pointer;
@@ -386,7 +387,8 @@
       connecting: '서버 연결 중…',
       saving: '저장 중…',
       saved: '서버에 저장됨',
-      error: '서버 저장 실패 · 백업해 두세요'
+      error: '서버 저장 실패 · 백업해 두세요',
+      readonly: '저장 권한 없음 · 이 기기에만 저장 (공유한 사람에게 편집자 권한 요청)'
     }[mode];
     el.textContent = label;
     el.dataset.mode = mode;
@@ -404,7 +406,9 @@
           cloud.lastJSON = json;
           setSync('saved');
         } catch (e) {
-          setSync('error');
+          // 보기 전용으로 공유받은 사람은 서버에 쓸 수 없음 → 이 기기 저장으로 전환
+          if (e && e.code === 'invalid_argument') { cloud.ref = null; setSync('readonly'); }
+          else setSync('error');
         }
       });
     }, 600);
