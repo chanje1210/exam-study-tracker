@@ -65,7 +65,13 @@
     margin-bottom: 20px;
   }
   h1 { font-size: 22px; margin: 0; }
-  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .sync { font-size: 12px; color: var(--muted); padding: 0 4px; }
+  .sync::before { content: "●"; margin-right: 4px; font-size: 9px; vertical-align: 1px; }
+  .sync[data-mode="saved"]::before { color: var(--done); }
+  .sync[data-mode="local"]::before, .sync[data-mode="connecting"]::before, .sync[data-mode="saving"]::before { color: #e0a100; }
+  .sync[data-mode="error"] { color: var(--danger); }
+  .sync[data-mode="error"]::before { color: var(--danger); }
   button {
     font: inherit; color: inherit; cursor: pointer;
     background: var(--surface); border: 1px solid var(--border);
@@ -230,6 +236,7 @@
     <div class="toolbar">
       <button class="primary" id="addSubjectBtn">+ 과목 추가</button>
       <button id="backupBtn" title="기록 백업 · 불러오기">백업 / 불러오기</button>
+      <span class="sync" id="syncStatus" data-mode="local">이 기기 브라우저에만 저장</span>
       <button id="themeBtn" title="라이트/다크 전환">🌓</button>
     </div>
   </header>
@@ -323,8 +330,79 @@
     };
   }
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
-    catch (e) { toast('브라우저 저장에 실패했어요. 백업 버튼으로 파일 저장을 권장합니다.'); }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+    if (cloud.ref) scheduleCloudSave();
+  }
+
+  // ---------- 서버 저장 (claude.ai 링크로 열었을 때) ----------
+  // 브라우저 저장소는 Safari 등이 지울 수 있어서, 링크로 열면 계정에 연결된 서버 문서에 저장한다.
+  // 로컬 html 파일로 열면 window.claude가 없으므로 브라우저 저장만 쓴다.
+  const cloud = { ref: null, timer: null, writing: Promise.resolve(), lastJSON: '' };
+
+  function setSync(mode) {
+    const el = document.getElementById('syncStatus');
+    if (!el) return;
+    const label = {
+      local: '이 기기 브라우저에만 저장',
+      connecting: '서버 연결 중…',
+      saving: '저장 중…',
+      saved: '서버에 저장됨',
+      error: '서버 저장 실패 · 백업해 두세요'
+    }[mode];
+    el.textContent = label;
+    el.dataset.mode = mode;
+  }
+
+  function scheduleCloudSave() {
+    setSync('saving');
+    clearTimeout(cloud.timer);
+    cloud.timer = setTimeout(() => {
+      const json = JSON.stringify(state);
+      if (json === cloud.lastJSON) { setSync('saved'); return; }
+      cloud.writing = cloud.writing.then(async () => {
+        try {
+          await cloud.ref.set({ subjects: JSON.parse(json).subjects, updatedAt: new Date().toISOString() });
+          cloud.lastJSON = json;
+          setSync('saved');
+        } catch (e) {
+          setSync('error');
+        }
+      });
+    }, 600);
+  }
+
+  async function connectCloud() {
+    if (!window.claude || typeof window.claude.use !== 'function') { setSync('local'); return; }
+    setSync('connecting');
+    try {
+      const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+      const id = user ? await user.id() : null;
+      if (!db || !id) { setSync('local'); return; }
+      const ref = db.doc('data/users/' + id + '/tracker');
+      const snap = await ref.get();
+      if (snap.exists && Array.isArray(snap.data().subjects)) {
+        state = normalize(snap.data());
+        cloud.lastJSON = JSON.stringify(state);
+        try { localStorage.setItem(STORE_KEY, cloud.lastJSON); } catch (e) {}
+        render();
+      }
+      cloud.ref = ref;
+      // 서버에 아직 기록이 없으면 이 기기 기록을 올린다
+      if (!snap.exists && state.subjects.length) scheduleCloudSave(); else setSync('saved');
+      // 다른 기기에서 바꾼 내용을 실시간으로 반영
+      ref.onSnapshot(sn => {
+        if (!sn.exists || sn.metadata.hasPendingWrites || dragging) return;
+        const next = normalize(sn.data());
+        const json = JSON.stringify(next);
+        if (json === JSON.stringify(state)) return;
+        state = next;
+        cloud.lastJSON = json;
+        try { localStorage.setItem(STORE_KEY, json); } catch (e) {}
+        render();
+      }, () => {});
+    } catch (e) {
+      setSync('local');
+    }
   }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -497,6 +575,7 @@
   }
 
   // ---------- 드래그 막대 (항목 진행도) ----------
+  let dragging = false;
   function makeSlider(bar, get, onInput, onCommit) {
     const fill = bar.querySelector('.fill');
     const knob = bar.querySelector('.knob');
@@ -514,12 +593,14 @@
     }
     bar.addEventListener('pointerdown', e => {
       bar.setPointerCapture(e.pointerId);
+      dragging = true;
       set(fromEvent(e), false);
       const move = ev => set(fromEvent(ev), false);
       const up = () => {
         bar.removeEventListener('pointermove', move);
         bar.removeEventListener('pointerup', up);
         bar.removeEventListener('pointercancel', up);
+        dragging = false;
         set(get(), true);
       };
       bar.addEventListener('pointermove', move);
@@ -734,6 +815,7 @@
   }
 
   render();
+  connectCloud();
 })();
 </script>
 </body>
