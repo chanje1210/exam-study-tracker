@@ -105,16 +105,15 @@
   }
   .overview h2, .section-title { font-size: 16px; margin: 0 0 12px; }
   .ov-row {
-    display: grid; grid-template-columns: minmax(80px, 160px) 1fr 64px;
+    display: grid; grid-template-columns: minmax(80px, 160px) 1fr 44px 64px;
     gap: 10px; align-items: center; padding: 6px 0;
   }
   .ov-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ov-bars { display: grid; gap: 4px; }
-  .mini { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
+  .ov-pct { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .overview h2 .hint { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .mini { height: 10px; background: var(--track); border-radius: 4px; overflow: hidden; }
   .mini > span { display: block; height: 100%; border-radius: 4px; }
   .ov-dday { text-align: right; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .legend { display: flex; gap: 14px; color: var(--muted); font-size: 12px; margin-top: 8px; }
-  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 
   /* 과목 카드 */
   .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
@@ -140,7 +139,7 @@
   .progress { height: 12px; background: var(--track); border-radius: 6px; overflow: hidden; }
   .progress > span { display: block; height: 100%; background: var(--done); border-radius: 6px; transition: width .25s; }
 
-  /* 드래그 성취 막대 */
+  /* 드래그 막대 */
   .bar {
     position: relative; height: 26px; border-radius: 13px;
     background: var(--track); cursor: ew-resize; touch-action: none; user-select: none;
@@ -154,10 +153,6 @@
     transform: translateY(-50%); border-radius: 50%;
     background: #fff; border: 3px solid var(--c, var(--accent));
     box-shadow: 0 1px 4px rgba(0,0,0,.25);
-  }
-  .bar .ticks { position: absolute; inset: 0; pointer-events: none; }
-  .bar .ticks span {
-    position: absolute; top: 8px; bottom: 8px; width: 1px; background: rgba(127,127,127,.25);
   }
 
   /* 체크리스트 */
@@ -224,7 +219,7 @@
 
   @media (max-width: 520px) {
     .grid { grid-template-columns: 1fr; }
-    .ov-row { grid-template-columns: 80px 1fr 52px; }
+    .ov-row { grid-template-columns: 72px 1fr 40px 48px; }
   }
 </style>
 </head>
@@ -319,7 +314,6 @@
         name: String(s.name || '이름 없음'),
         date: /^\d{4}-\d{2}-\d{2}$/.test(s.date) ? s.date : '',
         color: COLORS.includes(s.color) ? s.color : COLORS[0],
-        achievement: clamp(s.achievement),
         items: Array.isArray(s.items) ? s.items.map(i => ({
           id: String(i.id || uid()),
           text: String(i.text || ''),
@@ -389,7 +383,6 @@
     const doneItems = subs.reduce((a, s) => a + s.items.filter(i => i.progress === 100).length, 0);
     const sumItems = subs.reduce((a, s) => a + s.items.reduce((b, i) => b + i.progress, 0), 0);
     const prog = totalItems ? Math.round(sumItems / totalItems) : 0;
-    const ach = subs.length ? Math.round(subs.reduce((a, s) => a + s.achievement, 0) / subs.length) : 0;
     const upcoming = sortedSubjects().find(s => { const d = daysLeft(s.date); return d !== null && d >= 0; });
 
     $('summary').innerHTML = `
@@ -402,11 +395,6 @@
         <div class="label">전체 범위 진도</div>
         <div class="value">${prog}%</div>
         <div class="sub">전체 항목 평균 · ${doneItems} / ${totalItems} 항목 완료</div>
-      </div>
-      <div class="stat">
-        <div class="label">평균 성취도</div>
-        <div class="value">${ach}%</div>
-        <div class="sub">${subs.length}개 과목 자가평가 평균</div>
       </div>`;
   }
 
@@ -414,19 +402,16 @@
     const subs = sortedSubjects();
     if (!subs.length) { $('overview').hidden = true; return; }
     $('overview').hidden = false;
-    $('overview').innerHTML = `<h2>한눈에 보기</h2>` + subs.map(s => {
+    $('overview').innerHTML = `<h2>한눈에 보기 <span class="hint">· 과목별 범위 진도</span></h2>` + subs.map(s => {
       const d = daysLeft(s.date);
       return `
       <div class="ov-row">
         <div class="ov-name" title="${esc(s.name)}">${esc(s.name)}</div>
-        <div class="ov-bars">
-          <div class="mini" title="진도 ${progressOf(s)}%"><span style="width:${progressOf(s)}%;background:var(--done)"></span></div>
-          <div class="mini" title="성취도 ${s.achievement}%"><span style="width:${s.achievement}%;background:${s.color}"></span></div>
-        </div>
+        <div class="mini"><span style="width:${progressOf(s)}%;background:${s.color}"></span></div>
+        <div class="ov-pct">${progressOf(s)}%</div>
         <div class="ov-dday" style="color:${d !== null && d >= 0 && d <= 3 ? 'var(--danger)' : 'inherit'}">${ddayText(d)}</div>
       </div>`;
-    }).join('') + `
-      <div class="legend"><span><i style="background:var(--done)"></i>범위 진도</span><span><i style="background:var(--muted)"></i>성취도 (과목 색)</span></div>`;
+    }).join('');
   }
 
   function renderSubjects() {
@@ -440,10 +425,6 @@
     box.innerHTML = subs.map(cardHTML).join('');
     subs.forEach(s => {
       const card = box.querySelector(`.card[data-id="${s.id}"]`);
-      const achLabel = card.querySelector('.ach-val');
-      makeSlider(card.querySelector('.bar.ach'), () => s.achievement,
-        v => { s.achievement = v; achLabel.textContent = v + '%'; },
-        () => { save(); renderSummary(); renderOverview(); });
       s.items.forEach(it => {
         const li = card.querySelector(`li[data-item="${it.id}"]`);
         const val = li.querySelector('.item-val');
@@ -464,7 +445,6 @@
     const cls = d === null ? '' : d < 0 ? 'past' : d <= 3 ? 'soon' : '';
     const p = progressOf(s);
     const done = s.items.filter(i => i.progress === 100).length;
-    const ticks = [25, 50, 75].map(t => `<span style="left:${t}%"></span>`).join('');
     const items = s.items.length
       ? s.items.map(it => `
         <li class="${it.progress === 100 ? 'done' : ''}" data-item="${it.id}">
@@ -506,16 +486,6 @@
       </div>
 
       <div>
-        <div class="meter-label"><span>성취도 <span class="hint">· 막대를 드래그해서 표시</span></span><b class="ach-val">${s.achievement}%</b></div>
-        <div class="bar ach" role="slider" tabindex="0" aria-label="${esc(s.name)} 성취도"
-             aria-valuemin="0" aria-valuemax="100" aria-valuenow="${s.achievement}">
-          <div class="ticks">${ticks}</div>
-          <div class="fill" style="width:${s.achievement}%"></div>
-          <div class="knob" style="left:${s.achievement}%"></div>
-        </div>
-      </div>
-
-      <div>
         <div class="meter-label"><span>시험 범위 체크리스트 <span class="hint">· 항목별 막대를 드래그</span></span></div>
         <ul class="checklist">${items}</ul>
       </div>
@@ -526,7 +496,7 @@
     </article>`;
   }
 
-  // ---------- 드래그 막대 (성취도 · 항목 진행도 공용) ----------
+  // ---------- 드래그 막대 (항목 진행도) ----------
   function makeSlider(bar, get, onInput, onCommit) {
     const fill = bar.querySelector('.fill');
     const knob = bar.querySelector('.knob');
@@ -689,7 +659,7 @@
     if (editing) {
       Object.assign(editing, { name, date, color: pickedColor });
     } else {
-      state.subjects.push({ id: uid(), name, date, color: pickedColor, achievement: 0, items: [] });
+      state.subjects.push({ id: uid(), name, date, color: pickedColor, items: [] });
     }
     save(); dlg.close(); render();
   });
