@@ -261,6 +261,7 @@
   .field { display: grid; gap: 4px; margin-bottom: 12px; }
   .field label { font-size: 13px; color: var(--muted); }
   .colors { display: flex; flex-wrap: wrap; gap: 8px; }
+  .colors .color-break { flex-basis: 100%; height: 0; }
   .colors button {
     width: 28px; height: 28px; border-radius: 50%; padding: 0;
     border: 2px solid transparent; background: var(--sw);
@@ -325,7 +326,7 @@
       <input type="date" id="fDate">
     </div>
     <div class="field">
-      <label>색상</label>
+      <label>색상 <span id="fColorName"></span></label>
       <div class="colors" id="fColors"></div>
     </div>
     <div class="dialog-actions">
@@ -416,7 +417,14 @@
 (function () {
   const STORE_KEY = 'examStudyTracker.v1';
   const THEME_KEY = 'examStudyTracker.theme';
-  const COLORS = ['#3b6ef5', '#e8590c', '#22a06b', '#ae3ec9', '#d6336c', '#0c8599', '#f08c00', '#5c7cfa'];
+  // 무지개 순서(빨주노초파남보) 다음에 추가 색
+  const PALETTE = [
+    ['#e03131', '빨강'], ['#f76707', '주황'], ['#f2b705', '노랑'], ['#2f9e44', '초록'],
+    ['#1c7ed6', '파랑'], ['#364fc7', '남색'], ['#7048e8', '보라'],
+    ['#d6336c', '분홍'], ['#74b816', '연두'], ['#0c8599', '청록'], ['#8d6e63', '갈색'], ['#868e96', '회색']
+  ];
+  const COLORS = PALETTE.map(p => p[0]);
+  const colorName = c => (PALETTE.find(p => p[0] === c) || [c, '기존 색'])[1];
 
 
   // ---------- 저장 ----------
@@ -454,7 +462,7 @@
         id: String(s.id || uid()),
         name: String(s.name || '이름 없음'),
         date: /^\d{4}-\d{2}-\d{2}$/.test(s.date) ? s.date : '',
-        color: COLORS.includes(s.color) ? s.color : COLORS[0],
+        color: /^#[0-9a-f]{6}$/i.test(s.color) ? s.color : COLORS[4],
         // 예전 단일 체크리스트(items)는 개념 공부로 옮김
         concept: list(s.concept || s.items),
         problem: list(s.problem),
@@ -901,12 +909,16 @@
   // ---------- 과목 추가/수정 모달 ----------
   const dlg = $('subjectDialog');
   let editing = null;
-  let pickedColor = COLORS[0];
+  let pickedColor = COLORS[4];
 
   function renderColors() {
-    $('fColors').innerHTML = COLORS.map(c =>
-      `<button type="button" style="--sw:${c}" data-color="${c}" aria-label="색상 ${c}" aria-pressed="${c === pickedColor}"></button>`
+    // 예전 팔레트에서 고른 색이면 맨 앞에 그대로 보여 줌
+    const list = COLORS.includes(pickedColor) ? COLORS : [pickedColor, ...COLORS];
+    $('fColors').innerHTML = list.map(c =>
+      `<button type="button" style="--sw:${c}" data-color="${c}" title="${colorName(c)}" aria-label="${colorName(c)}" aria-pressed="${c === pickedColor}"></button>`
+      + (c === '#7048e8' ? '<span class="color-break"></span>' : '') // 무지개 7색 다음 줄바꿈
     ).join('');
+    $('fColorName').textContent = '· ' + colorName(pickedColor);
   }
   $('fColors').addEventListener('click', e => {
     const b = e.target.closest('button[data-color]');
