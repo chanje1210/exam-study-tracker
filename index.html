@@ -182,6 +182,22 @@
   .item-bar { flex-basis: 100%; display: flex; align-items: center; gap: 10px; padding-left: 57px; }
   .item-bar .bar { flex: 1; }
   .item-val { width: 38px; text-align: right; font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .strategy { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .strategy summary {
+    display: flex; gap: 8px; align-items: baseline; padding: 8px 10px;
+    cursor: pointer; list-style: none; min-width: 0;
+  }
+  .strategy summary::-webkit-details-marker { display: none; }
+  .strategy summary::before { content: "▸"; color: var(--muted); font-size: 12px; }
+  .strategy[open] summary::before { content: "▾"; }
+  .strategy-title { flex: none; font-size: 13px; font-weight: 600; }
+  .strategy-peek { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .strategy[open] .strategy-peek { display: none; }
+  .strategy textarea.strategy-input {
+    display: block; width: calc(100% - 20px); margin: 0 10px; font: inherit; font-size: 14px; line-height: 1.5;
+    background: var(--surface); resize: vertical; min-height: 80px;
+  }
+  .strategy-note { font-size: 11px; color: var(--muted); padding: 4px 10px 8px; }
   .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .tab {
     display: grid; gap: 5px; text-align: left; padding: 8px 10px;
@@ -330,8 +346,9 @@
       <p>오른쪽 위 <b>+ 과목 추가</b>를 눌러 과목명, 시험 날짜, 색을 정해요. 날짜를 넣으면 D-day가 나오고, 시험이 가까운 과목부터 보여요. 과목 이름·날짜를 바꾸거나 삭제하려면 카드의 <b>⚙︎</b>를 눌러요.</p>
     </li>
     <li>
-      <h4>공부할 항목 넣기</h4>
+      <h4>공부할 항목 넣기 · 시험 전략</h4>
       <p>과목 카드의 <b>개념 공부</b> · <b>문제 풀이</b> 탭을 골라 아래 입력칸에 항목을 추가해요. 예: 개념은 'Ch.3 화학 평형', 문제는 '연습문제 3장'.</p>
+      <p>카드의 <b>시험 전략</b>을 눌러 펼치면 그 과목을 어떻게 준비할지 메모할 수 있어요. 접어 두면 첫 줄만 보여요.</p>
     </li>
     <li>
       <h4>진행도 기록</h4>
@@ -440,7 +457,8 @@
         color: COLORS.includes(s.color) ? s.color : COLORS[0],
         // 예전 단일 체크리스트(items)는 개념 공부로 옮김
         concept: list(s.concept || s.items),
-        problem: list(s.problem)
+        problem: list(s.problem),
+        strategy: String(s.strategy || '').slice(0, 2000)
       }))
     };
   }
@@ -509,7 +527,7 @@
       if (!snap.exists && state.subjects.length) scheduleCloudSave(); else setSync('saved');
       // 다른 기기에서 바꾼 내용을 실시간으로 반영
       ref.onSnapshot(sn => {
-        if (!sn.exists || sn.metadata.hasPendingWrites || dragging) return;
+        if (!sn.exists || sn.metadata.hasPendingWrites || dragging || document.activeElement?.classList.contains('strategy-input')) return;
         const next = normalize(sn.data());
         const json = JSON.stringify(next);
         if (json === JSON.stringify(state)) return;
@@ -579,6 +597,7 @@
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
   const uiTab = {}; // 과목별로 보고 있는 영역 (개념/문제)
+  const uiStrategyOpen = {}; // 과목별 시험 전략 칸 펼침 여부
 
   function render() {
     renderSummary();
@@ -720,6 +739,16 @@
         <div class="progress"><span class="prog-fill" style="width:${p}%"></span></div>
       </div>
 
+      <details class="strategy" ${uiStrategyOpen[s.id] ? 'open' : ''}>
+        <summary>
+          <span class="strategy-title">시험 전략</span>
+          <span class="strategy-peek">${s.strategy ? esc(s.strategy.split('\n')[0]) : '아직 적지 않았어요'}</span>
+        </summary>
+        <textarea class="strategy-input" rows="4" maxlength="2000" aria-label="${esc(s.name)} 시험 전략"
+          placeholder="예: 기출 위주로 공부하고 3장 계산 문제는 반복해서 풀기. 시험 전날엔 공식 정리만 다시 보기.">${esc(s.strategy)}</textarea>
+        <div class="strategy-note">입력하면 자동 저장돼요.</div>
+      </details>
+
       <div class="tabs">${tabs}</div>
 
       <div data-track="${key}">
@@ -783,6 +812,18 @@
     const idx = list.findIndex(i => i.id === el.closest('li').dataset.item);
     return { list, idx, it: list[idx] };
   }
+
+  $('subjects').addEventListener('input', e => {
+    if (!e.target.classList.contains('strategy-input')) return;
+    const s = getSubject(e.target);
+    s.strategy = e.target.value;
+    const peek = e.target.closest('.strategy').querySelector('.strategy-peek');
+    peek.textContent = s.strategy ? s.strategy.split('\n')[0] : '아직 적지 않았어요';
+    save();
+  });
+  $('subjects').addEventListener('toggle', e => {
+    if (e.target.classList?.contains('strategy')) uiStrategyOpen[getSubject(e.target).id] = e.target.open;
+  }, true);
 
   $('subjects').addEventListener('change', e => {
     if (e.target.type !== 'checkbox') return;
@@ -903,7 +944,7 @@
     if (editing) {
       Object.assign(editing, { name, date, color: pickedColor });
     } else {
-      state.subjects.push({ id: uid(), name, date, color: pickedColor, concept: [], problem: [] });
+      state.subjects.push({ id: uid(), name, date, color: pickedColor, concept: [], problem: [], strategy: '' });
     }
     save(); dlg.close(); render();
   });
