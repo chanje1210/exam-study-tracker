@@ -288,9 +288,48 @@
   html.compact .section-title, html.compact #subjects,
   html.compact #addSubjectBtn, html.compact #backupBtn { display: none; }
 
+  /* 긴 글자가 카드·칸을 화면 밖으로 밀어내지 않게: 그리드/플렉스 자식이 내용보다 좁아질 수 있도록 */
+  .grid > *, .card, .card > *, .card-head > div:first-child, .tab, .tab-top > span,
+  .summary > *, .ov-row > *, .checklist li, .checklist .txt { min-width: 0; }
+  .card-title, .checklist .txt, .stat .sub { overflow-wrap: anywhere; }
+  .tab-top > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .strategy summary { -webkit-tap-highlight-color: transparent; }
+
   @media (max-width: 520px) {
     .grid { grid-template-columns: 1fr; }
-    .ov-row { grid-template-columns: 64px 1fr 40px 46px; }
+    .wide-only { display: none; }
+
+    /* 상단: 제목 → 버튼 한 줄 → 저장 상태 */
+    header.top { margin-bottom: 14px; }
+    h1 { font-size: 20px; }
+    .toolbar { width: 100%; gap: 6px; }
+    .toolbar button { padding: 6px 10px; font-size: 14px; }
+    .toolbar .sync { order: 10; flex-basis: 100%; padding: 0; }
+
+    /* 한눈에 보기: 과목명·진도·D-day 한 줄, 그 아래 개념/문제 막대 */
+    .ov-row {
+      grid-template-columns: 1fr auto auto;
+      grid-template-areas: "name pct dday" "bars bars bars";
+      row-gap: 6px; padding: 8px 0; border-top: 1px solid var(--border);
+    }
+    .ov-row:first-of-type { border-top: none; }
+    .ov-name { grid-area: name; }
+    .ov-bars { grid-area: bars; }
+    .ov-pct { grid-area: pct; }
+    .ov-dday { grid-area: dday; min-width: 44px; }
+
+  }
+
+  /* 휴대폰·태블릿(터치): 수정 버튼이 늘 보이므로 이름이 좁아지지 않게
+     1줄째 체크·가중치·이름, 2줄째 진행도 막대 + 수정 버튼 */
+  @media (max-width: 520px), (hover: none) {
+    .checklist li { padding: 6px 2px; }
+    .checklist .txt { flex: 1 1 calc(100% - 70px); }
+    .checklist li .actions { order: 3; }
+    .checklist li .actions .icon { padding: 4px 6px; }
+    .item-bar { order: 2; flex: 1 1 0; padding-left: 4px; }
+    .item-val { width: 34px; }
   }
 </style>
 </head>
@@ -300,8 +339,8 @@
     <h1>📚 시험 준비 트래커</h1>
     <div class="toolbar">
       <button class="primary" id="addSubjectBtn">+ 과목 추가</button>
-      <button id="compactBtn" title="요약 화면만 보기 (#widget)">요약만 보기</button>
-      <button id="backupBtn" title="기록 백업 · 불러오기">백업 / 불러오기</button>
+      <button id="compactBtn" title="요약 화면만 보기 (#widget)">요약<span class="wide-only">만 보기</span></button>
+      <button id="backupBtn" title="기록 백업 · 불러오기">백업<span class="wide-only"> / 불러오기</span></button>
       <span class="sync" id="syncStatus" data-mode="local">이 기기 브라우저에만 저장</span>
       <button id="manualBtn" title="사용 매뉴얼 보기">매뉴얼</button>
       <button id="themeBtn" title="라이트/다크 전환">🌓</button>
@@ -1050,7 +1089,7 @@
   function applyCompact() {
     const on = location.hash === '#widget';
     document.documentElement.classList.toggle('compact', on);
-    $('compactBtn').textContent = on ? '전체 보기' : '요약만 보기';
+    $('compactBtn').innerHTML = on ? '전체<span class="wide-only"> 보기</span>' : '요약<span class="wide-only">만 보기</span>';
   }
   $('compactBtn').addEventListener('click', () => {
     if (location.hash === '#widget') history.replaceState(null, '', location.pathname + location.search);
