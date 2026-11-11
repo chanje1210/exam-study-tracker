@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>대학부 회원 관리</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
   :root {
     --bg: #f6f7f9;
@@ -48,7 +49,8 @@
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
     font-size: 15px; line-height: 1.5;
   }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 96px; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding-block: 24px 96px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   header.top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   h1 { font-size: 22px; margin: 0; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -148,9 +150,12 @@
   ul.log .del { padding: 0 6px; font-size: 12px; color: var(--muted); }
 
   .fab {
-    position: fixed; right: 16px; bottom: 16px; z-index: 5;
+    position: fixed; z-index: 5;
+    right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     border-radius: 999px; padding: 12px 20px; font-weight: 600; box-shadow: 0 4px 14px rgba(0,0,0,.2);
   }
+  #confirmDlg { width: min(360px, calc(100vw - 32px)); }
+  #confirmDlg p { margin: 0; padding: 20px 16px 4px; white-space: pre-line; }
   .toast {
     position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%);
     background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px;
@@ -200,6 +205,15 @@
 
 <button class="primary fab" id="addBtn">+ 회원 추가</button>
 <div class="toast" id="toast" role="status"></div>
+
+<!-- 확인창 -->
+<dialog id="confirmDlg">
+  <p id="confirmMsg"></p>
+  <div class="sheet-foot" style="border-top:none">
+    <button type="button" id="confirmNo">취소</button>
+    <button type="button" class="primary" id="confirmYes">확인</button>
+  </div>
+</dialog>
 
 <!-- 상세 보기 -->
 <dialog id="viewDlg">
@@ -324,6 +338,21 @@
   const avatarHTML = m => m.photo ? `<img src="${m.photo}" alt="">` : esc(initial(m.name));
   const badgeHTML = k => { const s = statusOf(k); return `<span class="badge" style="color:${s.color}">${esc(s.label)}</span>`; };
 
+  // 브라우저 기본 confirm()은 일부 화면에서 막혀 있어 직접 만든 확인창을 쓴다.
+  function ask(msg, okLabel = '확인', danger = false) {
+    const d = $('#confirmDlg'), yes = $('#confirmYes'), no = $('#confirmNo');
+    $('#confirmMsg').textContent = msg;
+    yes.textContent = okLabel;
+    yes.className = danger ? 'danger' : 'primary';
+    d.showModal();
+    return new Promise(res => {
+      const done = v => { yes.onclick = no.onclick = d.onclose = null; if (d.open) d.close(); res(v); };
+      yes.onclick = () => done(true);
+      no.onclick = () => done(false);
+      d.onclose = () => done(false);
+    });
+  }
+
   let toastTimer;
   function toast(msg) {
     const t = $('#toast'); t.textContent = msg; t.classList.add('show');
@@ -447,7 +476,7 @@
   $('#viewBody').addEventListener('click', async e => {
     const b = e.target.closest('[data-log]'); if (!b) return;
     const m = members.find(x => x.id === viewingId); if (!m) return;
-    if (!confirm('이 기록을 삭제할까요?')) return;
+    if (!await ask('이 기록을 삭제할까요?', '삭제', true)) return;
     m.logs = (m.logs || []).filter(l => l.id !== b.dataset.log);
     await save(); openView(m.id);
   });
@@ -539,7 +568,7 @@
   $('#editBtn').addEventListener('click', () => openEdit(viewingId));
   $('#deleteBtn').addEventListener('click', async () => {
     const m = members.find(x => x.id === viewingId); if (!m) return;
-    if (!confirm(`${m.name} 님의 정보를 모두 삭제할까요? 되돌릴 수 없어요.`)) return;
+    if (!await ask(`${m.name} 님의 정보를 모두 삭제할까요?\n되돌릴 수 없어요.`, '삭제', true)) return;
     members = members.filter(x => x.id !== m.id);
     await save(); $('#viewDlg').close(); renderAll(); toast('삭제했어요');
   });
@@ -547,10 +576,19 @@
   document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
 
   // 백업/불러오기
-  $('#exportBtn').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ app: 'church-members', version: 1, exportedAt: new Date().toISOString(), members }, null, 1)], { type: 'application/json' });
+  $('#exportBtn').addEventListener('click', async () => {
+    const json = JSON.stringify({ app: 'church-members', version: 1, exportedAt: new Date().toISOString(), members }, null, 1);
+    const filename = `대학부회원_${today()}.json`;
+    // claude.ai에 올린 페이지에서는 downloads 기능으로 저장한다.
+    const dl = window.claude?.use ? await window.claude.use('downloads').catch(() => null) : null;
+    if (dl) {
+      try { await dl.save({ filename, data: json }); toast('백업 파일을 저장했어요'); }
+      catch (err) { if (err?.code !== 'declined') toast('이 화면에서는 백업 파일을 저장할 수 없어요'); }
+      return;
+    }
+    const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = `대학부회원_${today()}.json`;
+    a.href = URL.createObjectURL(blob); a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast('백업 파일을 저장했어요');
@@ -566,7 +604,7 @@
       const clean = list.filter(m => m && typeof m.name === 'string' && m.name.trim())
         .map(m => ({ ...m, id: m.id || uid(), logs: Array.isArray(m.logs) ? m.logs : [],
           photo: typeof m.photo === 'string' && m.photo.startsWith('data:image/') ? m.photo : '' }));
-      if (!confirm(`백업에서 ${clean.length}명을 불러올까요?\n지금 있는 회원 정보(${members.length}명)는 바뀝니다.`)) return;
+      if (!await ask(`백업에서 ${clean.length}명을 불러올까요?\n지금 있는 회원 정보(${members.length}명)는 바뀝니다.`, '불러오기')) return;
       members = clean; await save(); renderAll(); toast(`${clean.length}명을 불러왔어요`);
     } catch (_) { toast('백업 파일 형식이 아니에요'); }
   });
