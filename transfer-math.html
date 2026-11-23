@@ -1,0 +1,789 @@
+<title>편입수학 30일</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one phone-width column, bottom tab bar; crimson accent on a faintly warm neutral ground */
+:root {
+  --bg: #f7f5f5;
+  --surface: #ffffff;
+  --sunk: #efeaea;
+  --line: #e2dadb;
+  --fg: #1d1718;
+  --muted: #6f6466;
+  --accent: #8a1c2b;
+  --accent-soft: #f6e4e6;
+  --on-accent: #ffffff;
+  --good: #1f7a4d;
+  --good-soft: #e1f2e8;
+  --warn: #9a5b00;
+  --warn-soft: #fbefd9;
+  --bad: #b3261e;
+  --bad-soft: #fbe3e1;
+  --heat-0: #e9e2e3;
+  --heat-1: #f1c3c9;
+  --heat-2: #d9808d;
+  --heat-3: #8a1c2b;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151112; --surface: #1f1a1b; --sunk: #2a2324; --line: #3a3133; --fg: #f1eaeb; --muted: #ab9fa1;
+    --accent: #e3808d; --accent-soft: #3b2226; --on-accent: #1d0f11;
+    --good: #6fd09d; --good-soft: #1b3326; --warn: #e8b259; --warn-soft: #3a2c15; --bad: #f08a83; --bad-soft: #3d1f1d;
+    --heat-0: #2c2526; --heat-1: #5a2d34; --heat-2: #a4495a; --heat-3: #e3808d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151112; --surface: #1f1a1b; --sunk: #2a2324; --line: #3a3133; --fg: #f1eaeb; --muted: #ab9fa1;
+  --accent: #e3808d; --accent-soft: #3b2226; --on-accent: #1d0f11;
+  --good: #6fd09d; --good-soft: #1b3326; --warn: #e8b259; --warn-soft: #3a2c15; --bad: #f08a83; --bad-soft: #3d1f1d;
+  --heat-0: #2c2526; --heat-1: #5a2d34; --heat-2: #a4495a; --heat-3: #e3808d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+#view { display: grid; gap: 14px; min-width: 0; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+.app {
+  max-width: 640px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px calc(92px + env(safe-area-inset-bottom, 0px));
+  display: grid; gap: 14px;
+}
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.brand { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+.brand small { color: var(--muted); font-weight: 500; margin-left: 6px; }
+.sync { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.sync[data-s="ok"]::before { background: var(--good); }
+.sync[data-s="busy"]::before { background: var(--warn); }
+.sync[data-s="err"]::before { background: var(--bad); }
+
+h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -0.015em; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); }
+.muted { color: var(--muted); }
+
+/* Day header */
+.dayhead { display: grid; gap: 10px; }
+.daynav { display: flex; align-items: center; gap: 8px; }
+.daynav h1 { font-size: 24px; flex: 1; min-width: 0; }
+.daynav h1 .num { color: var(--accent); }
+.iconbtn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; font-size: 18px; flex: none; }
+.iconbtn:disabled { opacity: .35; cursor: default; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
+.chip.accent { background: var(--accent-soft); color: var(--accent); }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.linkbtn { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 13px; padding: 0; }
+
+.progress { display: grid; gap: 6px; }
+.progress-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.progress-row b { font-size: 28px; font-family: var(--font-num); letter-spacing: -0.02em; }
+.bar { height: 10px; border-radius: 999px; background: var(--sunk); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width .3s ease; }
+.bar.thin { height: 6px; }
+
+.need { font-size: 14px; background: var(--sunk); border-radius: 10px; padding: 10px 12px; }
+.need b { display: block; font-size: 12px; color: var(--muted); letter-spacing: .04em; margin-bottom: 2px; }
+
+/* Suggestions */
+.sugg { border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 8px; border: 1px solid transparent; }
+.sugg h3 { font-size: 15px; }
+.sugg p { margin: 0; font-size: 14px; }
+.sugg.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 25%, transparent); }
+.sugg.warn h3 { color: var(--warn); }
+.sugg.bad { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 25%, transparent); }
+.sugg.bad h3 { color: var(--bad); }
+.sugg.good { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 25%, transparent); }
+.sugg.good h3 { color: var(--good); }
+.sugg .why { font-size: 12px; color: var(--muted); }
+.btn { border: 0; border-radius: 10px; padding: 9px 14px; font-weight: 600; font-size: 14px; background: var(--accent); color: var(--on-accent); justify-self: start; }
+.btn.ghost { background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+
+/* Tasks */
+.group { display: grid; gap: 6px; }
+.group-title { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 700; color: var(--muted); padding: 4px 2px 0; }
+.task { display: grid; grid-template-columns: 44px 1fr; gap: 4px 10px; align-items: start; padding: 10px 10px 10px 8px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.task.done { background: var(--sunk); }
+.task.done .t-label { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.check { width: 36px; height: 36px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); display: grid; place-items: center; font-size: 18px; font-weight: 700; color: transparent; margin-left: 2px; }
+.task.half .check { border-color: var(--warn); color: var(--warn); }
+.task.done .check { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.t-body { min-width: 0; display: grid; gap: 2px; padding-top: 1px; }
+.t-label { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.t-sub { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.tag { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 6px; background: var(--sunk); color: var(--muted); }
+.tag.keep { background: var(--accent-soft); color: var(--accent); }
+.tag.light { background: var(--warn-soft); color: var(--warn); }
+.tag.hard { background: var(--bad-soft); color: var(--bad); }
+.t-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.mini { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; font-size: 12px; font-weight: 600; padding: 4px 9px; color: var(--muted); }
+.mini[aria-pressed="true"] { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.mini.hardbtn[aria-pressed="true"] { background: var(--bad-soft); color: var(--bad); }
+.empty { padding: 14px; text-align: center; color: var(--muted); font-size: 14px; border: 1px dashed var(--line); border-radius: 12px; }
+
+/* Log */
+.field { display: grid; gap: 6px; }
+.field > label, .field > .lbl { font-size: 13px; font-weight: 600; color: var(--muted); }
+.stepper { display: flex; align-items: center; gap: 10px; }
+.stepper output { font-family: var(--font-num); font-size: 24px; font-weight: 600; min-width: 72px; text-align: center; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.seg button { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 4px; font-size: 14px; font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.checklist { display: grid; gap: 4px; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; padding: 6px 2px; cursor: pointer; }
+.checklist input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; margin-top: 1px; }
+textarea { width: 100%; min-height: 84px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); font-size: 14px; }
+
+/* Plan */
+.week { display: grid; gap: 8px; }
+.week-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 6px 2px 0; }
+.week-head h2 { font-size: 16px; }
+.dayrow { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: start; padding: 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); text-align: left; width: 100%; }
+.dayrow.is-today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.dayrow.special { background: color-mix(in srgb, var(--warn-soft) 55%, var(--surface)); }
+.d-no { font-family: var(--font-num); font-weight: 600; font-size: 13px; color: var(--muted); line-height: 1.3; }
+.d-no b { display: block; font-size: 20px; color: var(--fg); }
+.d-main { min-width: 0; display: grid; gap: 3px; font-size: 14px; }
+.d-main .secs { font-weight: 600; overflow-wrap: anywhere; }
+.d-main .g { font-size: 12px; color: var(--accent); font-weight: 600; }
+.d-stat { font-family: var(--font-num); font-size: 13px; font-weight: 600; }
+details.card summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; justify-content: space-between; }
+details.card summary::-webkit-details-marker { display: none; }
+details.card summary::after { content: "펼치기"; font-size: 12px; color: var(--accent); font-weight: 600; }
+details.card[open] summary::after { content: "접기"; }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+ol.rules, ul.rules { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+
+/* Stats */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 2px; }
+.tile .v { font-family: var(--font-num); font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.tile .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal .wd { font-size: 11px; text-align: center; color: var(--muted); font-weight: 600; }
+.cell { aspect-ratio: 1; max-width: 100%; border-radius: 9px; border: 0; background: var(--heat-0); display: grid; place-items: center; font-family: var(--font-num); font-size: 12px; font-weight: 600; color: var(--fg); padding: 0; }
+.cell[data-h="1"] { background: var(--heat-1); }
+.cell[data-h="2"] { background: var(--heat-2); color: #fff; }
+.cell[data-h="3"] { background: var(--heat-3); color: var(--on-accent); }
+.cell.future { background: transparent; border: 1px dashed var(--line); color: var(--muted); }
+.cell.today { outline: 2px solid var(--fg); outline-offset: 1px; }
+.legend { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); justify-content: flex-end; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.wkbar { display: grid; grid-template-columns: 74px 1fr 42px; gap: 10px; align-items: center; font-size: 13px; }
+.memo-list { display: grid; gap: 10px; }
+.memo-item { font-size: 14px; border-left: 3px solid var(--line); padding-left: 10px; }
+.memo-item b { font-size: 12px; color: var(--muted); display: block; }
+
+/* Tab bar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  padding: 6px max(12px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+}
+.tabbar nav { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.tab { border: 0; background: none; padding: 8px 4px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--muted); display: grid; justify-items: center; gap: 2px; }
+.tab svg { width: 22px; height: 22px; }
+.tab[aria-selected="true"] { color: var(--accent); background: var(--accent-soft); }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; z-index: 30; display: flex; gap: 12px; align-items: center; max-width: calc(100% - 32px); }
+.toast button { border: 0; background: none; color: inherit; text-decoration: underline; font-weight: 700; padding: 0; }
+@media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+</style>
+
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="brand">편입수학 30일<small>미분적분학 9판</small></div>
+    <div class="sync" id="sync" data-s="busy">불러오는 중</div>
+  </div>
+  <main id="view"></main>
+</div>
+<div class="tabbar">
+  <nav role="tablist" aria-label="화면">
+    <button class="tab" role="tab" id="tab-today" data-tab="today" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>오늘</button>
+    <button class="tab" role="tab" id="tab-plan" data-tab="plan" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>전체 계획</button>
+    <button class="tab" role="tab" id="tab-stats" data-tab="stats" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>기록</button>
+  </nav>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Plan data (from the 30-day plan PDF) ---------- */
+  const START = '2026-11-15';
+  const END = '2026-12-14';
+  const RAW = [
+    [['1.5 함수의 극한', '1.6 극한 법칙을 이용한 극한 계산'], '극한 법칙, 인수분해·유리화로 극한 계산, 조임정리. (1.1~1.3은 모르는 함수가 있을 때만 훑기)', ['2024-3(나)']],
+    [['1.8 연속', '3.4 무한대에서의 극한과 수평점근선', '2.1 도함수와 변화율'], '연속의 정의, 중간값정리. 차수 비교로 무한대 극한. 도함수의 정의(극한으로).', ['2024-3(다)']],
+    [['2.2 함수로서의 도함수', '2.3 미분 공식', '2.4 삼각함수의 도함수', '2.5 연쇄법칙'], '다항·곱·몫·삼각함수 미분, 연쇄법칙을 막힘없이. 계산 연습량이 가장 중요한 날.', []],
+    [['2.6 음함수의 미분법', '6.1 역함수와 그의 도함수', '6.2~6.4 지수함수·로그함수와 도함수'], '음함수 미분으로 접선 구하기, (f⁻¹)′(a) = 1/f′(f⁻¹(a)), eˣ·ln x 미분, 로그 미분법. (6.2*~6.4*는 같은 내용의 다른 도입이니 한쪽만)', ['2024-2', '2024-6']],
+    [['6.6 역삼각함수', '6.8 부정형과 로피탈 법칙'], 'tan⁻¹x, sin⁻¹x 미분. 0/0, ∞/∞, 0·∞, 0⁰, ∞⁰, 1^∞ 꼴을 로그로 바꿔 처리.', ['2024-1', '2025-8']],
+    [['3.1 최댓값과 최솟값', '3.2 평균값 정리', '3.7 최적화 문제'], '임계점으로 최대·최소, 평균값정리의 조건과 결론(참/거짓 단골). 최적화는 기본형만.', ['2024-3(가)', '2024-7']],
+    [['4.1~4.2 넓이와 거리, 정적분 (가볍게)', '4.3 미적분학의 기본정리', '4.4 부정적분과 순변화정리', '4.5 치환법'], '기본 적분 공식 암기, 기본정리 두 형태, 치환적분. 대칭 구간에서 홀함수 적분 = 0.', ['2024-3(라)']],
+    [['7.1 부분적분', '7.2 삼각적분'], '부분적분 (LIATE 순서), sin·cos 거듭제곱 적분, 반각공식.', []],
+    [['7.3 삼각치환 (기본형만)', '7.4 부분분수에 의한 유리함수의 적분', '7.5 적분을 위한 전략'], '√(a²−x²) 꼴 치환, 부분분수 분해, 유리화 치환 (x = t⁶ 같은 것).', ['2025-5']],
+    [['7.8 이상적분', '5.1 곡선 사이의 넓이', '5.2 부피 · 5.3 원통껍질에 의한 부피'], '이상적분 수렴·발산(p적분), 와셔법과 원통껍질법.', ['2026-8']],
+    [['9.1~9.2 매개변수 곡선과 미적분 (가볍게)', '9.3 극좌표', '9.4 극좌표에서 미분적분학'], '극좌표 ↔ 직교좌표, 극곡선의 접선 기울기 공식, 넓이 ½∫r²dθ, 길이 ∫√(r²+r′²)dθ, 심장형.', ['2026-4', '2024-8']],
+    [['10.1 수열', '10.2 급수'], '수열의 극한, 기하급수, 망원급수, 발산판정법 (항이 0으로 안 가면 발산).', ['2024-4(나)(다)']],
+    [['10.3 적분판정법과 합의 추정', '10.4 비교판정법'], 'p급수, Σ1/(n ln n) 발산 (2년 연속 출제), 극한비교판정 + 근사식 (sin, ln(1+x), eˣ−1, 1−cos).', ['2026-1b·c·d', '2025-3(가)~(라)']],
+    [['10.5 교대급수와 절대 수렴', '10.6 비판정법과 근판정법', '10.7 급수판정을 위한 전략'], '교대급수 조건 3개, 절대·조건 수렴, 비/근판정, 판정이 1일 때 처리. 판정법 고르는 순서 확립.', ['2024-4 전체', '2025-2(마)', '2025-3(마)', '2026-1a']],
+    [['복습: 1~2주차 틀린 문제 다시 풀기', '급수 묶음 기출 시간 재고 풀기 (2024-4, 2025-3, 2026-1)', '10.8 거듭제곱급수'], '1~2주차 틀린 문제 다시 풀기. 급수 묶음 기출 3개 시간 재고 풀기. 수렴반경·수렴구간.', [], 'review'],
+    [['10.9 함수를 거듭제곱급수로 나타내기', '10.10 테일러 급수와 매클로린 급수'], '1/(1−x)에서 미분·적분·대입으로 급수 만들기. 매클로린 급수 6개 암기 (eˣ, sin, cos, ln(1+x), tan⁻¹x, 1/(1−x)). 극한 계산, f⁽ⁿ⁾(0) = n!·cₙ.', ['2026-2b·5', '2025-1', '2024-5']],
+    [['13.1 다변수함수', '13.2 극한과 연속', '13.3 편도함수'], '다변수 극한이 없음을 경로로 보이기, 부등식으로 0 보이기. 편미분 계산과 정의로 구하기. "편미분 존재 ⇒ 연속" 거짓 (2년 연속).', ['2025-2(다)(라)', '2026-3a·b']],
+    [['13.4 접평면과 선형근사', '13.5 연쇄법칙', '13.6 방향도함수와 기울기 벡터'], '접평면 방정식, 다변수 연쇄법칙, ∇f와 방향도함수.', []],
+    [['13.7 최댓값과 최솟값', '13.8 라그랑주 승수'], '임계점과 2계 판정, 라그랑주 승수법. 이차식 조건은 완전제곱으로 바꾸는 방법도.', ['2025-4']],
+    [['14.1 직사각형 영역에서 이중적분', '14.2 일반적인 영역에서 이중적분'], '반복적분, 영역 그림 그리기와 적분 순서 바꾸기 (영역이 두 조각으로 갈리는 경우까지).', ['2025-6']],
+    [['14.3 극좌표에서 이중적분', '14.9 다중적분에서 변수변환'], '극좌표 변환 (dA = r dr dθ), 야코비안, 회전 변환으로 타원 영역 만들기.', ['2026-6', '2025-7']],
+    [['복습: 3주차 틀린 문제 다시 풀기', '14.6 삼중적분', '14.7·14.8 원기둥·구면좌표 (기본형)'], '3주차 틀린 문제. 삼중적분 기본 계산, 원기둥·구면좌표 변환식 (발산정리에 필요).', [], 'review'],
+    [['15.1 벡터장', '15.2 선적분'], '곡선 매개화, 스칼라·벡터 선적분 계산.', []],
+    [['15.3 선적분의 기본정리'], '보존장 판별, 퍼텐셜 함수 찾기, 복잡한 곡선은 끝점만, 닫힌 곡선이면 0. 보존 부분 떼어내기.', ['2024-9', '2024-10', '2026-3d·e']],
+    [['15.4 그린 정리', '15.5 회전과 발산'], '그린 정리, 열린 곡선을 선분으로 닫기. curl·div 계산, "F = curl G ⇔ div F = 0".', ['2026-9', '2026-3c']],
+    [['15.6 매개곡면과 그 넓이', '15.7 면적분'], 'r_u × r_v 법선, 접평면. 그래프 곡면 플럭스 ∬(−Pg_x − Qg_y + R)dA, 방향 확인.', ['2026-7', '2025-9']],
+    [['15.8 스토크스 정리', '15.9 발산 정리'], '스토크스로 곡면 바꾸기, 발산정리 + 원판으로 닫기, 닫은 면의 법선 방향.', ['2026-10', '2025-10']],
+    [['실전 1: 2024 기출 (70분)', '실전 1: 2025 기출 (70분)', '틀린 문제는 해당 절 다시 읽기'], '시간 재고 풀기 → 채점 → 틀린 문제는 해당 절 다시 읽기.', [], 'exam'],
+    [['실전 2: 2026 기출 (70분)', '3개년 오답 해설 없이 다시 풀기'], '3개년 30문제 중 틀린 문제를 해설 없이 다시 풀기.', [], 'exam'],
+    [['필수 암기 목록 반복', '참/거짓 단골 명제 반복', '오답 노트만 반복'], '새 문제는 풀지 않기.', [], 'final'],
+  ];
+  const WEEKS = [
+    { name: '1주차', title: '1변수 미적분 핵심', from: 1, to: 7 },
+    { name: '2주차', title: '적분 기술과 급수 판정', from: 8, to: 14 },
+    { name: '3주차', title: '테일러 급수, 편도함수, 다중적분', from: 15, to: 21 },
+    { name: '4주차', title: '벡터해석 (15장)', from: 22, to: 27 },
+    { name: '마무리', title: '기출 실전 · 오답 · 암기', from: 28, to: 30 },
+  ];
+  const REVIEW_DAYS = [15, 22];
+  const SPACING = [1, 3, 7];
+  const DAILY_CHECKS = [
+    '오늘 절의 정리를 조건까지 한 줄로 쓸 수 있다',
+    '연습문제 기본 10~15개를 풀고 채점했다',
+    '오늘 연결된 기출 문항을 풀었다',
+    '틀린 문제를 오답 노트에 옮겼다',
+  ];
+  const SKIP_TABLE = [
+    ['1장', '1.4 접선 문제와 속도 문제, 1.7 극한의 엄밀한 정의'],
+    ['2장', '2.7 자연과학과 사회과학에서의 변화율, 2.8 관련 비율, 2.9 선형근사와 미분'],
+    ['3장', '3.3 그래프의 모양, 3.5 곡선 그리기 요약, 3.6 도구를 이용한 곡선 그리기, 3.8 뉴턴의 방법, 3.9 역도함수 (4.4와 겹침)'],
+    ['5·6장', '5.4 일, 5.5 함수의 평균값, 6.5 지수적 증가 및 감소, 6.7 쌍곡선함수'],
+    ['7·8장', '7.6 적분표와 도구, 7.7 근사적분, 8장 전체 (8.1 호의 길이는 9.4를 하다 필요하면 참고)'],
+    ['9·10장', '9.5 원뿔곡선, 9.6 극좌표에서 원뿔곡선, 10.11 테일러 다항식의 응용'],
+    ['13·14장', '14.4 이중적분의 응용, 14.5 곡면 넓이 (15.6과 겹침)'],
+    ['15장', '15.10 요약 (마지막 날 정리용으로만)'],
+  ];
+
+  /* ---------- Dates ---------- */
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = t => t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+  const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (s, n) => { const t = parse(s); t.setDate(t.getDate() + n); return fmt(t); };
+  const diff = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
+  const WD = ['일', '월', '화', '수', '목', '금', '토'];
+  const short = s => { const t = parse(s); return (t.getMonth() + 1) + '/' + t.getDate() + ' (' + WD[t.getDay()] + ')'; };
+  const dayNo = s => diff(START, s) + 1;
+  const dateOf = n => addDays(START, n - 1);
+  const todayStr = () => fmt(new Date());
+  const clampDate = s => s < START ? START : s > END ? END : s;
+
+  /* ---------- Tasks ---------- */
+  const W = { section: 2, gichul: 1, review: 2, exam: 2, final: 1, spaced: 1 };
+  const PLAN = [];
+  const TASKS = [];
+  RAW.forEach((r, i) => {
+    const n = i + 1, date = dateOf(n), [secs, need, gichul, type] = r;
+    const day = { n, date, secs, need, gichul, type: type || 'study', tasks: [] };
+    secs.forEach((label, j) => {
+      let kind = 'section';
+      if (type === 'exam') kind = 'exam';
+      else if (type === 'final') kind = 'final';
+      else if (/^복습|급수 묶음/.test(label)) kind = 'review';
+      const t = { id: 'd' + n + 's' + j, n, date, label, kind, w: W[kind] };
+      t.light = /가볍게|^14\.7/.test(label);
+      t.keep = /^1[05]\./.test(label) || /급수 묶음/.test(label) || n >= 28;
+      day.tasks.push(t); TASKS.push(t);
+    });
+    if (gichul.length) {
+      const t = { id: 'd' + n + 'g', n, date, label: '기출 ' + gichul.join(', '), kind: 'gichul', w: W.gichul, light: false,
+        keep: (n >= 12 && n <= 16) || (n >= 23 && n <= 27) };
+      day.tasks.push(t); TASKS.push(t);
+    }
+    PLAN.push(day);
+  });
+  const BY_ID = Object.fromEntries(TASKS.map(t => [t.id, t]));
+  const NORMAL_LOAD = TASKS.reduce((a, t) => a + t.w, 0) / PLAN.length;
+
+  /* ---------- State ---------- */
+  // status[id] = {s:'done'|'half', at:date, h?:date}; hard[id]=date; moved[id]=date; skipped[id]=date; logs[date]={hours,mood,checks,memo}
+  const emptyState = () => ({ v: 1, status: {}, hard: {}, moved: {}, skipped: {}, logs: {} });
+  let state = emptyState();
+  const LS_KEY = 'transferMath30.v1';
+  try { const raw = localStorage.getItem(LS_KEY); if (raw) state = Object.assign(emptyState(), JSON.parse(raw)); } catch (e) {}
+
+  function spacedTasks() {
+    const out = [];
+    for (const [id, at] of Object.entries(state.hard)) {
+      const base = BY_ID[id]; if (!base) continue;
+      SPACING.forEach(k => {
+        const d = addDays(at, k);
+        if (d > END) return;
+        out.push({ id: 'rv:' + id + ':' + k, n: dayNo(d), date: d, label: '복습 · ' + base.label, kind: 'spaced', w: W.spaced,
+          light: false, keep: base.keep, spacing: k, base: id });
+      });
+    }
+    return out;
+  }
+  const allTasks = () => TASKS.concat(spacedTasks());
+  const assigned = t => state.moved[t.id] || t.date;
+  const st = t => state.status[t.id];
+  const doneBefore = (t, D) => { const s = st(t); return s && s.s === 'done' && s.at < D; };
+  const isDoneOn = (t, D) => { const s = st(t); return !!(s && s.s === 'done' && s.at <= D); };
+  const isHalfOn = (t, D) => { const s = st(t); return !!(s && s.s === 'half' && s.at <= D); };
+
+  function visibleOn(D) {
+    return allTasks().filter(t => assigned(t) <= D && !state.skipped[t.id] && !doneBefore(t, D));
+  }
+  function achievement(D) {
+    if (D > todayStr() || D < START || D > END) return null;
+    const vis = visibleOn(D);
+    if (!vis.length) return null;
+    let total = 0, got = 0;
+    vis.forEach(t => {
+      total += t.w;
+      const s = st(t);
+      if (!s) return;
+      if (s.s === 'done' && s.at === D) got += t.w;
+      else if ((s.s === 'half' && s.at === D) || s.h === D) got += t.w * 0.5;
+    });
+    return total ? got / total : null;
+  }
+  const pct = v => Math.round(v * 100);
+
+  /* ---------- Persistence ---------- */
+  let db = null, docRef = null, lastSynced = '', writing = false, queued = false, saveTimer = null;
+  const syncEl = document.getElementById('sync');
+  function setSync(s, text) { syncEl.dataset.s = s; syncEl.textContent = text; }
+
+  function save() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+    if (!docRef) return;
+    clearTimeout(saveTimer);
+    setSync('busy', '저장 중');
+    saveTimer = setTimeout(flush, 500);
+  }
+  async function flush() {
+    if (!docRef) return;
+    if (writing) { queued = true; return; }
+    writing = true;
+    const body = JSON.parse(JSON.stringify(state));
+    try {
+      await docRef.set(body);
+      lastSynced = JSON.stringify(body);
+      setSync('ok', '저장됨 · 기기 간 동기화');
+    } catch (e) {
+      setSync('err', e && e.code === 'permission_denied' ? '저장 권한 없음' : '저장 실패 · 이 기기에만 보관');
+    }
+    writing = false;
+    if (queued) { queued = false; flush(); }
+  }
+
+  async function connect() {
+    if (!window.claude || typeof window.claude.use !== 'function') {
+      setSync('', '이 기기에만 저장'); return;
+    }
+    const timer = setTimeout(() => { if (!docRef) setSync('', '이 기기에만 저장'); }, 10000);
+    try {
+      const [dbNs, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+      const uid = user ? await user.id() : null;
+      if (!dbNs || !uid) { clearTimeout(timer); setSync('', '이 기기에만 저장'); return; }
+      db = dbNs;
+      const ref = db.collection('data/users/' + uid).doc('planner');
+      const snap = await ref.get();
+      clearTimeout(timer);
+      docRef = ref;
+      if (snap.exists) {
+        const data = JSON.parse(JSON.stringify(snap.data()));
+        lastSynced = JSON.stringify(data);
+        state = Object.assign(emptyState(), data);
+        try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+        setSync('ok', '저장됨 · 기기 간 동기화');
+        render();
+      } else if (Object.keys(state.status).length || Object.keys(state.logs).length) {
+        flush();
+      } else {
+        setSync('ok', '기기 간 동기화 켜짐');
+      }
+      ref.onSnapshot(s => {
+        if (!s.exists || writing || saveTimer && syncEl.dataset.s === 'busy') return;
+        const data = JSON.parse(JSON.stringify(s.data()));
+        const str = JSON.stringify(data);
+        if (str === lastSynced) return;
+        lastSynced = str;
+        state = Object.assign(emptyState(), data);
+        try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+        if (!document.activeElement || document.activeElement.tagName !== 'TEXTAREA') render();
+      }, () => setSync('err', '동기화 끊김 · 새로고침하세요'));
+    } catch (e) {
+      clearTimeout(timer);
+      setSync('', '이 기기에만 저장');
+    }
+  }
+
+  /* ---------- Mutations ---------- */
+  let view = 'today';
+  let cur = clampDate(todayStr());
+  function commit(msg, undoable) {
+    save(); render();
+    if (msg) toast(msg, undoable);
+  }
+  function setStatus(t, s, D) {
+    const prev = state.status[t.id];
+    if (!s) { delete state.status[t.id]; return; }
+    const rec = { s, at: D };
+    if (s === 'done' && prev && prev.s === 'half') rec.h = prev.at;
+    state.status[t.id] = rec;
+  }
+  function toggleDone(t, D) {
+    const s = st(t);
+    setStatus(t, s && s.s === 'done' ? (s.h ? 'half' : null) : 'done', D);
+    if (s && s.s === 'done' && s.h) state.status[t.id] = { s: 'half', at: s.h };
+    commit();
+  }
+  function toggleHalf(t, D) {
+    const s = st(t);
+    if (s && s.s === 'half') delete state.status[t.id];
+    else setStatus(t, 'half', D);
+    commit();
+  }
+  function toggleHard(t, D) {
+    if (state.hard[t.id]) { delete state.hard[t.id]; commit('복습 일정을 지웠어요'); }
+    else { state.hard[t.id] = D; commit('1일·3일·7일 뒤 복습을 넣었어요'); }
+  }
+  function moveTo(t, D) {
+    if (t.date === D) delete state.moved[t.id]; else state.moved[t.id] = D;
+  }
+  function skip(t, D) { state.skipped[t.id] = D; }
+
+  /* ---------- Suggestions (adaptive plan) ---------- */
+  function suggestions(D) {
+    const out = [];
+    if (D > todayStr()) return out;
+    const n = dayNo(D);
+    const vis = visibleOn(D);
+    const pending = vis.filter(t => !isDoneOn(t, D));
+    const carry = pending.filter(t => assigned(t) < D && t.kind !== 'spaced');
+    const prev = D > START ? achievement(addDays(D, -1)) : null;
+    const load = pending.reduce((a, t) => a + t.w * (isHalfOn(t, D) ? 0.5 : 1), 0);
+    const lows = [1, 2, 3].map(k => addDays(D, -k) >= START ? achievement(addDays(D, -k)) : null);
+
+    if (lows.every(v => v !== null && v < 0.6)) {
+      out.push({ tone: 'bad', title: '3일 연속 60% 미만이에요',
+        body: '남은 일정을 다시 맞출 때예요. 복습일(Day 15·22)을 밀린 진도로 쓰고, "건너뛰어도 되는 절"과 Day 22의 원기둥·구면좌표는 버리세요. 10장 급수와 15장 벡터해석은 그대로 지키세요.',
+        why: '최근 3일 달성도: ' + lows.slice().reverse().map(v => pct(v) + '%').join(' → ') });
+    }
+
+    if (REVIEW_DAYS.includes(n) && carry.length) {
+      const rv = pending.filter(t => t.kind === 'review' && assigned(t) === D);
+      if (rv.length) out.push({ tone: 'warn', title: '오늘은 밀린 진도부터',
+        body: '밀린 할 일이 ' + carry.length + '개 있어요. 복습일은 밀린 진도에 쓰고, 복습은 내일 아침 1시간으로 줄이세요.',
+        why: '계획 규칙: 복습일(Day 15, 22)을 밀린 진도로 쓴다',
+        action: '복습을 내일로 옮기기', run: () => { rv.forEach(t => moveTo(t, addDays(D, 1))); commit('복습을 내일로 옮겼어요'); } });
+    }
+
+    const heavy = load > NORMAL_LOAD * 1.4;
+    if ((prev !== null && prev < 0.6) || heavy) {
+      const why = prev !== null && prev < 0.6 ? '어제 달성도 ' + pct(prev) + '%' : '남은 양이 평소의 ' + (load / NORMAL_LOAD).toFixed(1) + '배';
+      const light = pending.filter(t => t.light);
+      if (light.length) {
+        out.push({ tone: 'warn', title: '오늘 양을 줄여요',
+          body: '가볍게 봐도 되는 항목을 빼고 핵심만 하세요: ' + light.map(t => t.label).join(', '),
+          why, action: light.length + '개 건너뛰기', run: () => { light.forEach(t => skip(t, D)); commit('건너뛰었어요. 기록 탭에서 되돌릴 수 있어요'); } });
+      } else {
+        const nextReview = REVIEW_DAYS.map(dateOf).find(d => d > D);
+        const movable = carry.filter(t => !t.keep);
+        const o = { tone: 'warn', title: '밀린 양이 많아요',
+          body: '10장 급수·15장 벡터해석은 줄이지 말고 먼저 하세요.' + (nextReview && movable.length ? ' 나머지 밀린 절 ' + movable.length + '개는 다음 복습일(' + short(nextReview) + ')로 보내도 돼요.' : ' 하루를 다 못 채워도 핵심 절과 기출부터 끝내세요.'),
+          why };
+        if (nextReview && movable.length) { o.action = '다음 복습일로 보내기'; o.run = () => { movable.forEach(t => moveTo(t, nextReview)); commit('Day ' + dayNo(nextReview) + '로 옮겼어요'); }; }
+        out.push(o);
+      }
+    }
+
+    if (!pending.length && vis.length && n < 30) {
+      const next = PLAN[n].tasks.find(t => !isDoneOn(t, D) && !state.skipped[t.id] && assigned(t) > D);
+      if (next && (prev === null || prev >= 0.9 || n === 1)) {
+        out.push({ tone: 'good', title: '오늘 할 일 끝! 앞서갈까요?',
+          body: '내일 진도 "' + next.label + '"를 오늘로 당겨 오면 뒤 일정에 여유가 생겨요.',
+          why: prev !== null ? '어제 달성도 ' + pct(prev) + '% · 오늘 100%' : '오늘 100%',
+          action: '오늘로 당겨 오기', run: () => { moveTo(next, D); commit('오늘 목록에 넣었어요'); } });
+      }
+    }
+    return out;
+  }
+
+  /* ---------- Rendering ---------- */
+  const $view = document.getElementById('view');
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let actions = {};
+  let actionSeq = 0;
+  const act = fn => { const k = 'a' + (++actionSeq); actions[k] = fn; return k; };
+
+  function render() {
+    actions = {}; actionSeq = 0;
+    document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === view)));
+    if (view === 'today') $view.innerHTML = renderToday();
+    else if (view === 'plan') $view.innerHTML = renderPlan();
+    else $view.innerHTML = renderStats();
+  }
+
+  function kindLabel(t) {
+    return { section: '교재', gichul: '기출', review: '복습일', exam: '실전', final: '정리', spaced: t.spacing + '일 뒤 복습' }[t.kind];
+  }
+
+  function taskHTML(t, D) {
+    const done = isDoneOn(t, D), half = !done && isHalfOn(t, D);
+    const tags = [];
+    tags.push('<span class="tag">' + kindLabel(t) + '</span>');
+    if (assigned(t) < D && t.kind !== 'spaced') tags.push('<span class="tag">Day ' + t.n + '에서 이월</span>');
+    if (t.keep) tags.push('<span class="tag keep">줄이지 않기</span>');
+    if (t.light) tags.push('<span class="tag light">가볍게</span>');
+    if (state.hard[t.id]) tags.push('<span class="tag hard">어려움</span>');
+    const canHard = t.kind === 'section' || t.kind === 'gichul' || t.kind === 'exam';
+    const btns = [];
+    btns.push('<button class="mini" aria-pressed="' + half + '" data-a="' + act(() => toggleHalf(t, D)) + '">절반</button>');
+    if (canHard) btns.push('<button class="mini hardbtn" aria-pressed="' + !!state.hard[t.id] + '" data-a="' + act(() => toggleHard(t, D)) + '">어려웠음</button>');
+    if (!done && D < END) btns.push('<button class="mini" data-a="' + act(() => { moveTo(t, addDays(D, 1)); commit('내일로 미뤘어요'); }) + '">내일로</button>');
+    if (!done && !t.keep) btns.push('<button class="mini" data-a="' + act(() => { skip(t, D); commit('건너뛰었어요. 기록 탭에서 되돌릴 수 있어요'); }) + '">건너뛰기</button>');
+    return '<div class="task' + (done ? ' done' : half ? ' half' : '') + '">' +
+      '<button class="check" aria-label="' + esc(t.label) + (done ? ' 완료 취소' : ' 완료') + '" data-a="' + act(() => toggleDone(t, D)) + '">' + (done ? '✓' : half ? '½' : '') + '</button>' +
+      '<div class="t-body"><div class="t-label">' + esc(t.label) + '</div><div class="t-sub">' + tags.join('') + '</div></div>' +
+      '<div class="t-actions">' + btns.join('') + '</div></div>';
+  }
+
+  function renderToday() {
+    const D = cur, n = dayNo(D), day = PLAN[n - 1], today = clampDate(todayStr());
+    const vis = visibleOn(D);
+    const a = achievement(D);
+    const doneW = vis.reduce((s, t) => s + (isDoneOn(t, D) ? t.w : isHalfOn(t, D) ? t.w / 2 : 0), 0);
+    const totW = vis.reduce((s, t) => s + t.w, 0);
+    const ratio = totW ? doneW / totW : 0;
+    const left = diff(todayStr(), END);
+    const carry = vis.filter(t => assigned(t) < D && t.kind !== 'spaced');
+    const spaced = vis.filter(t => t.kind === 'spaced');
+    const main = vis.filter(t => assigned(t) === D && t.kind !== 'spaced');
+    const weekObj = WEEKS.find(w => n >= w.from && n <= w.to);
+    const isPast = D < todayStr(), isFuture = D > todayStr();
+
+    let h = '<section class="dayhead">' +
+      '<div class="daynav">' +
+      '<button class="iconbtn" aria-label="이전 날" ' + (D <= START ? 'disabled' : 'data-a="' + act(() => { cur = addDays(D, -1); render(); }) + '"') + '>‹</button>' +
+      '<h1>Day <span class="num">' + n + '</span> · ' + short(D) + '</h1>' +
+      '<button class="iconbtn" aria-label="다음 날" ' + (D >= END ? 'disabled' : 'data-a="' + act(() => { cur = addDays(D, 1); render(); }) + '"') + '>›</button></div>' +
+      '<div class="chips"><span class="chip accent">' + weekObj.name + ' · ' + esc(weekObj.title) + '</span>' +
+      (day.type === 'review' ? '<span class="chip warn">복습일</span>' : '') +
+      (day.type === 'exam' ? '<span class="chip warn">실전</span>' : '') +
+      (left >= 0 ? '<span class="chip">계획 종료까지 D-' + left + '</span>' : '<span class="chip">계획 종료</span>') +
+      (isPast ? '<span class="chip">지난 날 기록 중</span>' : '') + (isFuture ? '<span class="chip">미리 보기</span>' : '') +
+      (D !== today ? '<button class="linkbtn" data-a="' + act(() => { cur = today; render(); }) + '">오늘로 가기</button>' : '') +
+      '</div></section>';
+
+    h += '<section class="card"><div class="progress"><div class="progress-row"><span class="eyebrow">오늘 달성도</span><b>' + pct(ratio) + '%</b></div>' +
+      '<div class="bar"><i style="width:' + pct(ratio) + '%"></i></div>' +
+      '<div class="t-sub">' + vis.filter(t => isDoneOn(t, D)).length + ' / ' + vis.length + '개 완료' +
+      (carry.length ? ' · 이월 ' + carry.length + '개' : '') + (spaced.length ? ' · 간격 복습 ' + spaced.length + '개' : '') + '</div></div>' +
+      '<div class="need"><b>꼭 할 줄 알아야 하는 것</b>' + esc(day.need) + '</div></section>';
+
+    suggestions(D).forEach(s => {
+      h += '<section class="sugg ' + s.tone + '"><h3>' + esc(s.title) + '</h3><p>' + esc(s.body) + '</p>' +
+        (s.why ? '<div class="why">' + esc(s.why) + '</div>' : '') +
+        (s.action ? '<button class="btn" data-a="' + act(s.run) + '">' + esc(s.action) + '</button>' : '') + '</section>';
+    });
+
+    const group = (title, list, note) => list.length ? '<section class="group"><div class="group-title"><span>' + title + '</span><span>' + (note || '') + '</span></div>' + list.map(t => taskHTML(t, D)).join('') + '</section>' : '';
+    h += group('밀린 할 일', carry, '먼저 끝내기');
+    h += group('간격 복습', spaced, '어려웠던 절');
+    h += main.length ? group('오늘 진도', main, '') : '<div class="empty">오늘 배정된 진도를 모두 옮겼거나 건너뛰었어요.</div>';
+
+    const log = state.logs[D] || {};
+    const hours = log.hours || 0;
+    const setLog = (k, v) => { state.logs[D] = Object.assign({}, state.logs[D], { [k]: v }); };
+    h += '<section class="card"><h2 style="font-size:17px">오늘 기록</h2>' +
+      '<div class="field"><span class="lbl">공부 시간</span><div class="stepper">' +
+      '<button class="iconbtn" aria-label="30분 빼기" data-a="' + act(() => { setLog('hours', Math.max(0, hours - 0.5)); commit(); }) + '">−</button>' +
+      '<output class="num">' + hours.toFixed(1) + 'h</output>' +
+      '<button class="iconbtn" aria-label="30분 더하기" data-a="' + act(() => { setLog('hours', Math.min(16, hours + 0.5)); commit(); }) + '">+</button>' +
+      '<span class="muted" style="font-size:13px">목표 6~8시간</span></div></div>' +
+      '<div class="field"><span class="lbl">체감 난이도</span><div class="seg">' +
+      [['easy', '할 만했음'], ['ok', '보통'], ['hard', '버거웠음']].map(([k, l]) =>
+        '<button aria-pressed="' + (log.mood === k) + '" data-a="' + act(() => { setLog('mood', log.mood === k ? null : k); commit(); }) + '">' + l + '</button>').join('') + '</div></div>' +
+      '<div class="field"><span class="lbl">매일 확인할 것</span><div class="checklist">' +
+      DAILY_CHECKS.map((c, i) => '<label><input type="checkbox" id="chk-' + i + '" data-chk="' + i + '"' + ((log.checks || [])[i] ? ' checked' : '') + '>' + esc(c) + '</label>').join('') + '</div></div>' +
+      '<div class="field"><label for="memo">메모 · 틀린 문제</label><textarea id="memo" placeholder="예: 10.4 극한비교판정에서 근사식 고르는 게 헷갈림">' + esc(log.memo || '') + '</textarea></div>' +
+      '</section>';
+
+    const skippedHere = Object.entries(state.skipped).filter(([, d]) => d === D);
+    if (skippedHere.length) {
+      h += '<section class="group"><div class="group-title"><span>오늘 건너뛴 항목</span></div>' + skippedHere.map(([id]) => {
+        const t = allTasks().find(x => x.id === id); if (!t) return '';
+        return '<div class="task"><span></span><div class="t-body"><div class="t-label muted">' + esc(t.label) + '</div></div>' +
+          '<div class="t-actions"><button class="mini" data-a="' + act(() => { delete state.skipped[id]; commit('되돌렸어요'); }) + '">되돌리기</button></div></div>';
+      }).join('') + '</section>';
+    }
+    return h;
+  }
+
+  function dayStatus(day) {
+    const D = day.date, t = todayStr();
+    if (D > t) return '<span class="d-stat muted">예정</span>';
+    const a = achievement(D);
+    if (a === null) return '<span class="d-stat muted">—</span>';
+    const cls = a >= 0.9 ? 'good' : a >= 0.6 ? 'warn' : 'bad';
+    return '<span class="chip ' + cls + ' num">' + pct(a) + '%</span>';
+  }
+
+  function renderPlan() {
+    const t = clampDate(todayStr());
+    let h = '<section class="card"><h2 style="font-size:17px">계획이 밀릴 때</h2><ol class="rules">' +
+      '<li>복습일(Day 15, 22)을 밀린 진도로 쓰고, 복습은 다음 날 아침 1시간으로 줄이기.</li>' +
+      '<li>그래도 밀리면 "건너뛰어도 되는 절"과 Day 22의 삼중적분(원기둥·구면) 버리기.</li>' +
+      '<li><b>10장 급수와 15장 벡터해석은 절대 줄이지 않기.</b> 매년 합쳐서 4~6문항.</li></ol>' +
+      '<p class="muted" style="margin:0;font-size:13px">앱이 매일 기록을 보고 이 규칙대로 조정을 제안해요. 날짜를 누르면 그날 화면으로 이동해요.</p></section>';
+    WEEKS.forEach(w => {
+      h += '<section class="week"><div class="week-head"><h2>' + w.name + ' · ' + esc(w.title) + '</h2><span class="muted num" style="font-size:12px">' +
+        short(dateOf(w.from)).replace(/ \(.\)/, '') + '~' + short(dateOf(w.to)).replace(/ \(.\)/, '') + '</span></div>';
+      for (let n = w.from; n <= w.to; n++) {
+        const d = PLAN[n - 1];
+        h += '<button class="dayrow' + (d.date === t ? ' is-today' : '') + (d.type !== 'study' ? ' special' : '') + '" data-a="' + act(() => { cur = d.date; view = 'today'; render(); window.scrollTo(0, 0); }) + '">' +
+          '<span class="d-no">Day<b>' + n + '</b>' + short(d.date).replace(/^\d+\//, '').replace(' (', '·').replace(')', '') + '</span>' +
+          '<span class="d-main"><span class="secs">' + d.secs.map(esc).join(' · ') + '</span>' +
+          (d.gichul.length ? '<span class="g">기출 ' + d.gichul.map(esc).join(', ') + '</span>' : '') + '</span>' +
+          dayStatus(d) + '</button>';
+      }
+      h += '</section>';
+    });
+    h += '<details class="card"><summary>하루 공부 방법</summary><ol class="rules">' +
+      '<li><b>개념 읽기 (30~40%)</b>: 절 본문과 정리를 읽고, 정리마다 "언제 쓰는지, 조건이 뭔지"를 노트에 한 줄로 적기.</li>' +
+      '<li><b>예제 직접 풀기 (20%)</b>: 해설을 가리고 먼저 풀어 보기.</li>' +
+      '<li><b>연습문제 (40%)</b>: 절마다 홀수번 기본 문제 10~15개 (부록 C에 답). 증명 문제와 계산기·CAS 문제는 건너뛰기.</li>' +
+      '<li><b>기출 연결</b>: 그날 연결된 기출 문항을 바로 풀어 보기.</li>' +
+      '<li><b>자기 전 10분</b>: 그날 공식과 틀린 문제 다시 보기.</li></ol></details>';
+    h += '<details class="card"><summary>건너뛰어도 되는 절</summary><p class="muted" style="margin:0;font-size:13px">3년 기출에 나오지 않았고, 다른 단원 이해에도 거의 필요 없는 절이에요.</p><div class="tbl-wrap"><table><thead><tr><th>장</th><th>건너뛸 절</th></tr></thead><tbody>' +
+      SKIP_TABLE.map(r => '<tr><td>' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>').join('') + '</tbody></table></div></details>';
+    return h;
+  }
+
+  function renderStats() {
+    const t = todayStr();
+    const days = PLAN.filter(d => d.date <= t);
+    const achs = days.map(d => achievement(d.date)).filter(v => v !== null);
+    const avg = achs.length ? achs.reduce((a, b) => a + b, 0) / achs.length : null;
+    const hours = Object.values(state.logs).reduce((a, l) => a + (l.hours || 0), 0);
+    const secs = TASKS.filter(x => x.kind === 'section');
+    const secsDone = secs.filter(x => st(x) && st(x).s === 'done').length;
+    const hardCount = Object.keys(state.hard).length;
+
+    let h = '<section class="tiles">' +
+      '<div class="tile"><span class="k">누적 공부 시간</span><span class="v">' + hours.toFixed(1) + 'h</span></div>' +
+      '<div class="tile"><span class="k">평균 달성도</span><span class="v">' + (avg === null ? '—' : pct(avg) + '%') + '</span></div>' +
+      '<div class="tile"><span class="k">끝낸 교재 절</span><span class="v">' + secsDone + '<span class="muted" style="font-size:15px"> / ' + secs.length + '</span></span></div>' +
+      '<div class="tile"><span class="k">어려웠던 항목</span><span class="v">' + hardCount + '</span></div></section>';
+
+    h += '<section class="card"><div class="progress-row"><h2 style="font-size:17px">30일 달력</h2>' +
+      '<span class="legend">60%↓<i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i>90%↑</span></div>' +
+      '<div class="cal">' + WD.map(w => '<span class="wd">' + w + '</span>').join('') +
+      PLAN.map(d => {
+        const a = achievement(d.date);
+        const lvl = a === null ? 0 : a >= 0.9 ? 3 : a >= 0.6 ? 2 : a > 0 ? 1 : 0;
+        const fut = d.date > t;
+        return '<button class="cell' + (fut ? ' future' : '') + (d.date === t ? ' today' : '') + '" data-h="' + lvl + '" aria-label="Day ' + d.n + (a !== null ? ' 달성도 ' + pct(a) + '%' : '') + '" data-a="' + act(() => { cur = d.date; view = 'today'; render(); window.scrollTo(0, 0); }) + '">' + parse(d.date).getDate() + '</button>';
+      }).join('') + '</div></section>';
+
+    h += '<section class="card"><h2 style="font-size:17px">주차별 진도</h2>' + WEEKS.map(w => {
+      const ts = TASKS.filter(x => x.n >= w.from && x.n <= w.to && !state.skipped[x.id]);
+      const tot = ts.reduce((a, x) => a + x.w, 0);
+      const got = ts.reduce((a, x) => a + (st(x) && st(x).s === 'done' ? x.w : st(x) && st(x).s === 'half' ? x.w / 2 : 0), 0);
+      const r = tot ? got / tot : 0;
+      return '<div class="wkbar"><span>' + w.name + '</span><div class="bar thin"><i style="width:' + pct(r) + '%"></i></div><span class="num" style="text-align:right">' + pct(r) + '%</span></div>';
+    }).join('') + '</section>';
+
+    const hardList = Object.entries(state.hard).sort((a, b) => a[1] < b[1] ? 1 : -1);
+    h += '<section class="card"><h2 style="font-size:17px">어려웠던 항목</h2>' + (hardList.length
+      ? '<div class="memo-list">' + hardList.map(([id, d]) => { const x = BY_ID[id]; return x ? '<div class="memo-item"><b>' + short(d) + ' 표시 · 복습 ' + SPACING.map(k => short(addDays(d, k)).replace(/ \(.\)/, '')).join(', ') + '</b>' + esc(x.label) + '</div>' : ''; }).join('') + '</div>'
+      : '<p class="muted" style="margin:0;font-size:14px">할 일에서 "어려웠음"을 누르면 1일·3일·7일 뒤 복습이 자동으로 들어가고 여기에 모여요.</p>') + '</section>';
+
+    const skippedAll = Object.entries(state.skipped);
+    if (skippedAll.length) {
+      h += '<section class="card"><h2 style="font-size:17px">건너뛴 항목</h2><div class="memo-list">' + skippedAll.map(([id, d]) => {
+        const x = allTasks().find(y => y.id === id); if (!x) return '';
+        return '<div class="memo-item" style="display:flex;justify-content:space-between;gap:10px;align-items:center"><span><b>' + short(d) + '</b>' + esc(x.label) + '</span><button class="mini" data-a="' + act(() => { delete state.skipped[id]; commit('되돌렸어요'); }) + '">되돌리기</button></div>';
+      }).join('') + '</div></section>';
+    }
+
+    const memos = Object.entries(state.logs).filter(([, l]) => l.memo && l.memo.trim()).sort((a, b) => a[0] < b[0] ? 1 : -1);
+    h += '<section class="card"><h2 style="font-size:17px">메모 모아 보기</h2>' + (memos.length
+      ? '<div class="memo-list">' + memos.map(([d, l]) => '<div class="memo-item"><b>Day ' + dayNo(d) + ' · ' + short(d) + '</b>' + esc(l.memo).replace(/\n/g, '<br>') + '</div>').join('') + '</div>'
+      : '<p class="muted" style="margin:0;font-size:14px">오늘 화면의 메모 칸에 적은 내용이 날짜별로 모여요.</p>') + '</section>';
+    return h;
+  }
+
+  /* ---------- Events ---------- */
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-a]');
+    if (b && actions[b.dataset.a]) { actions[b.dataset.a](); return; }
+    const tab = e.target.closest('.tab');
+    if (tab) { view = tab.dataset.tab; if (view === 'today') cur = clampDate(todayStr()); render(); window.scrollTo(0, 0); }
+  });
+  $view.addEventListener('change', e => {
+    if (e.target.dataset.chk === undefined) return;
+    const i = Number(e.target.dataset.chk);
+    const log = Object.assign({}, state.logs[cur]);
+    const checks = (log.checks || [false, false, false, false]).slice();
+    checks[i] = e.target.checked; log.checks = checks;
+    state.logs[cur] = log; save();
+  });
+  let memoTimer = null;
+  $view.addEventListener('input', e => {
+    if (e.target.id !== 'memo') return;
+    const v = e.target.value, D = cur;
+    clearTimeout(memoTimer);
+    memoTimer = setTimeout(() => { state.logs[D] = Object.assign({}, state.logs[D], { memo: v }); save(); }, 400);
+  });
+
+  const toastEl = document.getElementById('toast');
+  let toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastEl.hidden = true; }, 2200);
+  }
+
+  // Roll the "today" view forward if the page stays open past midnight.
+  let lastDay = todayStr();
+  setInterval(() => { const t = todayStr(); if (t !== lastDay) { if (cur === clampDate(lastDay)) cur = clampDate(t); lastDay = t; render(); } }, 60000);
+
+  render();
+  connect();
+})();
+</script>
