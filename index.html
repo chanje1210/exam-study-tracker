@@ -91,6 +91,21 @@
   }
   input:focus, button:focus-visible, .bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+  /* 시험 선택 */
+  .exams { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .exam-chip {
+    border-radius: 999px; padding: 6px 14px; font-weight: 600; min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .exam-chip[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
+  .exam-chip .exam-count { font-weight: 400; font-size: 12px; opacity: .7; }
+  .exam-chip.edit { padding: 6px 10px; color: var(--muted); }
+  .exam-chip.add { border-style: dashed; color: var(--muted); font-weight: 400; }
+  .check-field { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; font-size: 14px; cursor: pointer; }
+  .check-field input { margin-top: 3px; accent-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12.5px; }
+  dialog p.hint { margin: 0 0 8px; }
+
   /* 요약 */
   .summary {
     display: grid; gap: 12px;
@@ -347,11 +362,32 @@
     </div>
   </header>
 
+  <nav class="exams" id="exams" aria-label="시험 선택"></nav>
   <section class="summary" id="summary"></section>
   <section class="overview" id="overview"></section>
   <h2 class="section-title">과목별 상세</h2>
   <section class="grid" id="subjects"></section>
 </div>
+
+<dialog id="examDialog">
+  <form method="dialog" id="examForm">
+    <h3 id="examDialogTitle">새 시험</h3>
+    <div class="field">
+      <label for="eName">시험 이름</label>
+      <input type="text" id="eName" required maxlength="30" placeholder="예: 기말고사">
+    </div>
+    <label class="check-field" id="eCopyRow">
+      <input type="checkbox" id="eCopy" checked>
+      <span>지금 시험의 과목(이름·색)을 그대로 가져오기<br><span class="hint">항목·진도·전략·시험 날짜는 비운 채로 시작해요</span></span>
+    </label>
+    <p class="hint" id="eEditNote">이전 시험의 기록은 그대로 남아서, 위쪽 시험 이름을 누르면 언제든 다시 볼 수 있어요.</p>
+    <div class="dialog-actions">
+      <button type="button" id="examDelete" class="icon del" style="margin-right:auto">시험 삭제</button>
+      <button type="button" id="examCancel">취소</button>
+      <button type="submit" class="primary" id="examSubmit">만들기</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="subjectDialog">
   <form method="dialog" id="subjectForm">
@@ -409,6 +445,10 @@
     <li>
       <h4>한눈에 보기 · 요약 화면</h4>
       <p>위쪽 <b>한눈에 보기</b>에서 과목별 개념·문제 진도를 비교해요. <b>요약만 보기</b>를 누르면 요약만 남아요. 링크 끝에 <b>#widget</b>을 붙여 홈 화면에 추가하면 요약 화면으로 바로 열려요.</p>
+    </li>
+    <li>
+      <h4>새 시험 시작하기 (중간고사 → 기말고사)</h4>
+      <p>위쪽 시험 이름 줄에서 <b>+ 새 시험</b>을 눌러요. '지금 시험의 과목을 그대로 가져오기'를 켜 두면 과목 이름·색만 옮겨지고 항목·진도는 비운 채 시작해요. 이전 시험 기록은 지워지지 않고, 시험 이름을 누르면 언제든 다시 볼 수 있어요. <b>⚙︎</b>로 시험 이름을 바꾸거나 삭제해요.</p>
     </li>
     <li>
       <h4>저장 상태 확인</h4>
@@ -472,10 +512,10 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        if (data && Array.isArray(data.subjects)) return normalize(data);
+        if (isTrackerData(data)) return normalize(data);
       }
     } catch (e) {}
-    return { subjects: [] };
+    return normalize({ subjects: [] });
   }
   const clamp = v => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
   const TRACKS = [
@@ -493,22 +533,41 @@
       weight: i.weight in WEIGHTS ? i.weight : '중'
     };
   }
-  function normalize(data) {
-    const list = a => Array.isArray(a) ? a.map(normItem) : [];
+  const list = a => Array.isArray(a) ? a.map(normItem) : [];
+  function normSubject(s) {
     return {
-      hideManual: !!data.hideManual,
-      subjects: data.subjects.map(s => ({
-        id: String(s.id || uid()),
-        name: String(s.name || '이름 없음'),
-        date: /^\d{4}-\d{2}-\d{2}$/.test(s.date) ? s.date : '',
-        color: /^#[0-9a-f]{6}$/i.test(s.color) ? s.color : COLORS[4],
-        // 예전 단일 체크리스트(items)는 개념 공부로 옮김
-        concept: list(s.concept || s.items),
-        problem: list(s.problem),
-        strategy: String(s.strategy || '').slice(0, 2000)
-      }))
+      id: String(s.id || uid()),
+      name: String(s.name || '이름 없음'),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(s.date) ? s.date : '',
+      color: /^#[0-9a-f]{6}$/i.test(s.color) ? s.color : COLORS[4],
+      // 예전 단일 체크리스트(items)는 개념 공부로 옮김
+      concept: list(s.concept || s.items),
+      problem: list(s.problem),
+      strategy: String(s.strategy || '').slice(0, 2000)
     };
   }
+  const isTrackerData = d => !!d && (Array.isArray(d.exams) || Array.isArray(d.subjects));
+  // 시험(중간고사·기말고사 …)마다 과목 목록을 따로 가짐.
+  // 예전 기록(시험 구분 없이 subjects만 있음)은 '중간고사' 하나로 옮김
+  function normalize(data) {
+    let exams;
+    if (Array.isArray(data.exams) && data.exams.length) {
+      exams = data.exams.map(e => ({
+        id: String(e.id || uid()),
+        name: String(e.name || '시험').slice(0, 30),
+        subjects: Array.isArray(e.subjects) ? e.subjects.map(normSubject) : []
+      }));
+    } else {
+      const subjects = Array.isArray(data.subjects) ? data.subjects.map(normSubject) : [];
+      exams = [{ id: 'exam1', name: subjects.length ? '중간고사' : '내 시험', subjects }];
+    }
+    return {
+      hideManual: !!data.hideManual,
+      activeExam: exams.some(e => e.id === data.activeExam) ? data.activeExam : exams[exams.length - 1].id,
+      exams
+    };
+  }
+  const curExam = () => state.exams.find(e => e.id === state.activeExam) || state.exams[0];
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
     if (cloud.ref) scheduleCloudSave();
@@ -563,7 +622,7 @@
       if (!db || !id) { setSync('local'); return; }
       const ref = db.doc('data/users/' + id + '/tracker');
       const snap = await ref.get();
-      if (snap.exists && Array.isArray(snap.data().subjects)) {
+      if (snap.exists && isTrackerData(snap.data())) {
         state = normalize(snap.data());
         cloud.lastJSON = JSON.stringify(state);
         try { localStorage.setItem(STORE_KEY, cloud.lastJSON); } catch (e) {}
@@ -571,7 +630,7 @@
       }
       cloud.ref = ref;
       // 서버에 아직 기록이 없으면 이 기기 기록을 올린다
-      if (!snap.exists && state.subjects.length) scheduleCloudSave(); else setSync('saved');
+      if (!snap.exists && state.exams.some(e => e.subjects.length)) scheduleCloudSave(); else setSync('saved');
       // 다른 기기에서 바꾼 내용을 실시간으로 반영
       ref.onSnapshot(sn => {
         if (!sn.exists || sn.metadata.hasPendingWrites || dragging || document.activeElement?.classList.contains('strategy-input')) return;
@@ -630,7 +689,7 @@
   }
   const pctText = v => v === null ? '—' : v + '%';
   function sortedSubjects() {
-    return [...state.subjects].sort((a, b) => {
+    return [...curExam().subjects].sort((a, b) => {
       const da = daysLeft(a.date), db = daysLeft(b.date);
       const ka = da === null ? 1e9 : (da < 0 ? 1e8 - da : da);
       const kb = db === null ? 1e9 : (db < 0 ? 1e8 - db : db);
@@ -647,13 +706,23 @@
   const uiStrategyOpen = {}; // 과목별 시험 전략 칸 펼침 여부
 
   function render() {
+    renderExams();
     renderSummary();
     renderOverview();
     renderSubjects();
   }
 
+  function renderExams() {
+    $('exams').innerHTML = state.exams.map(e => `
+      <button class="exam-chip" data-exam="${e.id}" aria-pressed="${e.id === curExam().id}">
+        ${esc(e.name)} <span class="exam-count">${e.subjects.length}과목</span>
+      </button>`).join('') + `
+      <button class="exam-chip edit" id="examEditBtn" title="이 시험 이름 바꾸기·삭제" aria-label="이 시험 이름 바꾸기·삭제">⚙︎</button>
+      <button class="exam-chip add" id="examAddBtn">+ 새 시험</button>`;
+  }
+
   function renderSummary() {
-    const subs = state.subjects;
+    const subs = curExam().subjects;
     const prog = subs.length ? Math.round(subs.reduce((a, s) => a + progressOf(s), 0) / subs.length) : 0;
     const c = avg(subs.map(s => trackProgress(s.concept)));
     const pr = avg(subs.map(s => trackProgress(s.problem)));
@@ -852,7 +921,7 @@
   }
 
   // ---------- 카드 이벤트 (위임) ----------
-  const getSubject = el => state.subjects.find(s => s.id === el.closest('.card').dataset.id);
+  const getSubject = el => curExam().subjects.find(s => s.id === el.closest('.card').dataset.id);
   const getList = el => getSubject(el)[el.closest('[data-track]').dataset.track];
   function getItem(el) {
     const list = getList(el);
@@ -971,7 +1040,7 @@
     $('dialogTitle').textContent = s ? '과목 수정' : '과목 추가';
     $('fName').value = s ? s.name : '';
     $('fDate').value = s ? (s.date || '') : '';
-    pickedColor = s ? s.color : COLORS[state.subjects.length % COLORS.length];
+    pickedColor = s ? s.color : COLORS[curExam().subjects.length % COLORS.length];
     $('dialogDelete').hidden = !s;
     renderColors();
     dlg.showModal();
@@ -983,7 +1052,7 @@
   $('dialogDelete').addEventListener('click', () => {
     if (!editing) return;
     armed($('dialogDelete'), '한 번 더 누르면 삭제', () => {
-      state.subjects = state.subjects.filter(s => s !== editing);
+      curExam().subjects = curExam().subjects.filter(s => s !== editing);
       save(); dlg.close(); render(); toast('과목을 삭제했어요.');
     });
   });
@@ -995,9 +1064,60 @@
     if (editing) {
       Object.assign(editing, { name, date, color: pickedColor });
     } else {
-      state.subjects.push({ id: uid(), name, date, color: pickedColor, concept: [], problem: [], strategy: '' });
+      curExam().subjects.push({ id: uid(), name, date, color: pickedColor, concept: [], problem: [], strategy: '' });
     }
     save(); dlg.close(); render();
+  });
+
+  // ---------- 시험 (중간고사 · 기말고사 …) ----------
+  const edlg = $('examDialog');
+  let editingExam = null;
+  function openExamDialog(exam) {
+    editingExam = exam || null;
+    $('examDialogTitle').textContent = exam ? '시험 이름 바꾸기' : '새 시험';
+    $('eName').value = exam ? exam.name : (state.exams.some(e => e.name === '기말고사') ? '' : '기말고사');
+    $('eCopyRow').hidden = !!exam || !curExam().subjects.length;
+    $('eCopy').checked = true;
+    $('eEditNote').hidden = !!exam;
+    $('examDelete').hidden = !exam || state.exams.length < 2;
+    $('examSubmit').textContent = exam ? '저장' : '만들기';
+    edlg.showModal();
+    $('eName').focus();
+  }
+  $('exams').addEventListener('click', e => {
+    const chip = e.target.closest('[data-exam]');
+    if (chip) {
+      if (chip.dataset.exam !== state.activeExam) { state.activeExam = chip.dataset.exam; save(); render(); }
+      return;
+    }
+    if (e.target.closest('#examAddBtn')) openExamDialog(null);
+    if (e.target.closest('#examEditBtn')) openExamDialog(curExam());
+  });
+  $('examCancel').addEventListener('click', () => edlg.close());
+  $('examForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('eName').value.trim();
+    if (!name) return;
+    if (editingExam) {
+      editingExam.name = name;
+    } else {
+      const subjects = $('eCopy').checked && !$('eCopyRow').hidden
+        ? curExam().subjects.map(s => ({ id: uid(), name: s.name, date: '', color: s.color, concept: [], problem: [], strategy: '' }))
+        : [];
+      const exam = { id: uid(), name, subjects };
+      state.exams.push(exam);
+      state.activeExam = exam.id;
+      toast(`'${name}'을(를) 만들었어요. 이전 시험 기록은 위쪽에서 다시 볼 수 있어요.`);
+    }
+    save(); edlg.close(); render();
+  });
+  $('examDelete').addEventListener('click', () => {
+    if (!editingExam || state.exams.length < 2) return;
+    armed($('examDelete'), '한 번 더 누르면 시험 전체 삭제', () => {
+      state.exams = state.exams.filter(x => x !== editingExam);
+      state.activeExam = state.exams[state.exams.length - 1].id;
+      save(); edlg.close(); render(); toast('시험을 삭제했어요.');
+    });
   });
 
   // ---------- 백업 / 불러오기 ----------
@@ -1035,7 +1155,7 @@
     let data;
     try {
       data = JSON.parse($('bIn').value);
-      if (!data || !Array.isArray(data.subjects)) throw new Error();
+      if (!isTrackerData(data)) throw new Error();
     } catch (err) {
       toast('백업 내용이 올바르지 않아요. 복사한 내용을 그대로 붙여넣어 주세요.');
       return;
